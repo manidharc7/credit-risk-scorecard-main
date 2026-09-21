@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: creditguard-ml
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: SENDGRID_FROM_NAME
+        value: CreditGuard AI
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
