@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+creditguard.db
+data/
+.env
+.venv/
+venv/

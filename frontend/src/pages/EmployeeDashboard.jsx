@@ -1,23 +1,28 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import "../App.css";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
-function App() {  
-  const navigate = useNavigate();
+import { Sidebar } from "../components/Sidebar";
+import { db, API_BASE_URL } from "../firebase/config";
+import { fetchKnownCustomers } from "../firebase/customers";
+import { saveAssessment } from "../firebase/assessments";
+import { useAuth } from "../context/useAuth";
+import { useToast } from "../context/useToast";
 
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+function formatLastAssessed(timestamp) {
+  if (!timestamp?.toDate) return null;
+  return timestamp.toDate().toLocaleDateString();
+}
 
-  const employeeName =
-    user?.name ||
-    user?.employee_name ||
-    user?.username ||
-    user?.employee_id ||
-    "Employee";
+function EmployeeDashboard() {
+  const { user } = useAuth();
+  const toast = useToast();
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    navigate("/employee-login");
-  };
+  const [knownCustomers, setKnownCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedCustomerUid, setSelectedCustomerUid] = useState(null);
+
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
@@ -68,6 +73,73 @@ function App() {
       ...previous,
       [name]: value,
     }));
+
+    if (name === "customerName") {
+      setCustomerSearch(value);
+      setShowSuggestions(true);
+      setSelectedCustomerUid(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchKnownCustomers()
+      .then(setKnownCustomers)
+      .catch(() => {
+        // Non-fatal — the form still works for manual entry.
+      });
+  }, []);
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase();
+
+    if (!term) return [];
+
+    return knownCustomers
+      .filter(
+        (c) =>
+          c.name?.toLowerCase().includes(term) ||
+          c.email?.toLowerCase().includes(term)
+      )
+      .slice(0, 6);
+  }, [customerSearch, knownCustomers]);
+
+  const handleSelectCustomer = (customer) => {
+    setFormData((previous) => ({
+      ...previous,
+      customerName: customer.name || "",
+      customerEmail: customer.email || "",
+      ...(customer.formValues || {}),
+    }));
+
+    setCustomerSearch(customer.name || "");
+    setShowSuggestions(false);
+    setSelectedCustomerUid(customer.uid || null);
+
+    toast.info(
+      customer.formValues
+        ? "Loaded this customer's most recent assessment — review and update before submitting."
+        : "Loaded customer details. No prior assessment on file yet."
+    );
+  };
+
+  const persistAssessment = async (payload, apiResult) => {
+    const customerDoc = await addDoc(collection(db, "customers"), {
+      name: payload.customerName,
+      email: payload.customerEmail,
+      createdBy: user.uid,
+      createdAt: serverTimestamp(),
+    });
+
+    await saveAssessment({
+      payload,
+      apiResult,
+      customerName: payload.customerName,
+      customerEmail: payload.customerEmail,
+      customerUid: selectedCustomerUid,
+      customerDocId: customerDoc.id,
+      performedBy: user.uid,
+      source: "employee",
+    });
   };
 
   const assessRisk = async (e) => {
@@ -76,163 +148,127 @@ function App() {
     setLoading(true);
     setError("");
     setResult(null);
+    setEmailStatus("");
+
+    const payload = {
+      ...formData,
+
+      age: Number(formData.age),
+      employment_years: Number(formData.employment_years),
+
+      monthly_income: Number(formData.monthly_income),
+      cibil_score: Number(formData.cibil_score),
+
+      past_loans: Number(formData.past_loans),
+      on_time_payments: Number(formData.on_time_payments),
+      late_payments: Number(formData.late_payments),
+      defaults: Number(formData.defaults),
+
+      existing_loans: Number(formData.existing_loans),
+      existing_emi: Number(formData.existing_emi),
+
+      credit_utilization: Number(formData.credit_utilization),
+      dti_ratio: Number(formData.dti_ratio),
+
+      bank_balance: Number(formData.bank_balance),
+      savings_balance: Number(formData.savings_balance),
+
+      new_loan_amount: Number(formData.new_loan_amount),
+      loan_duration_months: Number(formData.loan_duration_months),
+
+      identity_verified: Number(formData.identity_verified),
+      address_verified: Number(formData.address_verified),
+      employment_verified: Number(formData.employment_verified),
+      background_verified: Number(formData.background_verified),
+      collateral_available: Number(formData.collateral_available),
+    };
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/predict",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...formData,
-
-            age: Number(formData.age),
-            employment_years: Number(formData.employment_years),
-
-            monthly_income: Number(formData.monthly_income),
-            cibil_score: Number(formData.cibil_score),
-
-            past_loans: Number(formData.past_loans),
-            on_time_payments: Number(formData.on_time_payments),
-            late_payments: Number(formData.late_payments),
-            defaults: Number(formData.defaults),
-
-            existing_loans: Number(formData.existing_loans),
-            existing_emi: Number(formData.existing_emi),
-
-            credit_utilization:
-              Number(formData.credit_utilization),
-
-            dti_ratio:
-              Number(formData.dti_ratio),
-
-            bank_balance:
-              Number(formData.bank_balance),
-
-            savings_balance:
-              Number(formData.savings_balance),
-
-            new_loan_amount:
-              Number(formData.new_loan_amount),
-
-            loan_duration_months:
-              Number(formData.loan_duration_months),
-
-            identity_verified:
-              Number(formData.identity_verified),
-
-            address_verified:
-              Number(formData.address_verified),
-
-            employment_verified:
-              Number(formData.employment_verified),
-
-            background_verified:
-              Number(formData.background_verified),
-
-            collateral_available:
-              Number(formData.collateral_available),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Prediction failed"
-        );
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Prediction failed");
       }
 
       setResult(data);
 
-      // Scroll to result after prediction
+      try {
+        await persistAssessment(payload, data);
+      } catch (persistError) {
+        toast.error(
+          "Assessment computed, but saving to history failed: " +
+            persistError.message
+        );
+      }
+
       setTimeout(() => {
         document
           .getElementById("assessment-result")
-          ?.scrollIntoView({
-            behavior: "smooth",
-          });
+          ?.scrollIntoView({ behavior: "smooth" });
       }, 200);
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
+
   const sendResultToCustomer = async () => {
     if (!result) return;
 
     setSendingEmail(true);
     setEmailStatus("");
-    setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/send-result",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            customerName: result.customer?.name,
-            customerEmail: result.customer?.email,
+      const response = await fetch(`${API_BASE_URL}/send-result`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerName: result.customer?.name,
+          customerEmail: result.customer?.email,
 
-            decision: result.decision,
-            risk_label: result.risk_label,
-            credit_score: result.credit_score,
+          decision: result.decision,
+          risk_label: result.risk_label,
+          credit_score: result.credit_score,
 
-            good_credit_probability:
-              result.good_credit_probability,
+          good_credit_probability: result.good_credit_probability,
+          poor_credit_probability: result.poor_credit_probability,
 
-            poor_credit_probability:
-              result.poor_credit_probability,
-
-            explanation:
-              result.explanation || [],
-
-            improvement_advice:
-              result.improvement_advice || [],
-          }),
-        }
-      );
+          explanation: result.explanation || [],
+          improvement_advice: result.improvement_advice || [],
+        }),
+      });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Failed to send email"
-        );
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to send email");
       }
 
-      setEmailStatus(
-        "✓ Assessment result sent successfully to customer."
-      );
-
+      setEmailStatus("✓ Assessment result sent successfully to customer.");
+      toast.success("Result emailed to customer.");
     } catch (err) {
-
-      setEmailStatus(
-        "✕ Failed to send email: " + err.message
-      );
-
+      setEmailStatus("✕ Failed to send email: " + err.message);
+      toast.error("Failed to send email: " + err.message);
     } finally {
-
       setSendingEmail(false);
-
     }
   };
 
   const getRiskClass = () => {
     if (!result) return "";
-
-    if (result.risk_label === "LOWER RISK") {
-      return "risk-good";
-    }
-
-    return "risk-high";
+    return result.risk_label === "LOWER RISK" ? "risk-good" : "risk-high";
   };
 
   const getCibilClass = () => {
@@ -240,7 +276,6 @@ function App() {
 
     if (score >= 750) return "score-good";
     if (score >= 650) return "score-medium";
-
     return "score-poor";
   };
 
@@ -255,70 +290,12 @@ function App() {
 
   return (
     <div className="app">
-
-      {/* ==================================================
-          NAVBAR
-      ================================================== */}
-
-      <header className="navbar">
-
-        <div className="brand">
-          <div className="brand-icon">
-            CG
-          </div>
-
-          <div>
-            <div className="logo">
-              CreditGuard <span>AI</span>
-            </div>
-
-            <div className="nav-subtitle">
-              Intelligent Credit Risk Platform
-            </div>
-          </div>
-        </div>
-
-        <div className="navbar-right">
-
-          <div className="employee-info">
-            <span className="employee-icon">👤</span>
-
-            <div>
-              <strong>{employeeName}</strong>
-              <small>Employee</small>
-            </div>
-          </div>
-
-          <button
-            className="logout-button"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
-
-          <div className="system-status">
-            <span className="status-dot"></span>
-            AI Model Online
-          </div>
-
-        </div>
-
-      </header>
-
+      <Sidebar portal="employee" />
 
       <main className="container">
-
-        {/* ==================================================
-            HERO
-        ================================================== */}
-
         <section className="hero">
-
           <div className="hero-content">
-
-            <span className="eyebrow">
-              AI-POWERED CREDIT ASSESSMENT
-            </span>
+            <span className="eyebrow">EMPLOYEE PORTAL</span>
 
             <h1>
               Credit Risk
@@ -326,92 +303,91 @@ function App() {
             </h1>
 
             <p>
-              Analyze customer creditworthiness using
-              CIBIL score, payment history, financial
-              behavior, verification checks and an
+              Analyze customer creditworthiness using CIBIL score, payment
+              history, financial behavior, verification checks and an
               explainable XGBoost model.
             </p>
-
           </div>
 
           <div className="hero-badge">
-
-            <div className="pulse-circle">
-              AI
-            </div>
+            <div className="pulse-circle">AI</div>
 
             <div>
               <strong>XGBoost</strong>
               <small>Explainable ML</small>
             </div>
-
           </div>
-
         </section>
 
-
-        {/* ==================================================
-            CUSTOMER FORM
-        ================================================== */}
-
         <section className="card form-card">
-
           <div className="section-heading">
-
             <div>
-              <span className="section-number">
-                01
-              </span>
+              <span className="section-number">01</span>
 
               <div>
                 <h2>Customer Information</h2>
-
-                <p>
-                  Enter the customer's financial and
-                  verification information.
-                </p>
+                <p>Enter the customer's financial and verification information.</p>
               </div>
             </div>
-
           </div>
 
-
           <form onSubmit={assessRisk}>
-
-            {/* CUSTOMER IDENTITY */}
-
             <div className="form-section">
-
-              <h3>
-                Customer Identity
-              </h3>
+              <h3>Customer Identity</h3>
+              <p className="field-hint" style={{ marginBottom: 12 }}>
+                Start typing a name to pick a returning customer — their
+                details (and last assessment, if any) will fill in below.
+              </p>
 
               <div className="form-grid two">
-
-                <div className="field">
-
-                  <label>
-                    Customer Name
-                  </label>
-
+                <div className="field customer-search-wrap">
+                  <label>Customer Name</label>
                   <input
                     type="text"
                     name="customerName"
                     value={formData.customerName}
                     onChange={handleChange}
-                    placeholder="Enter customer name"
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() =>
+                      setTimeout(() => setShowSuggestions(false), 150)
+                    }
+                    placeholder="Enter or search customer name"
+                    autoComplete="off"
                     required
                   />
 
+                  {showSuggestions && filteredCustomers.length > 0 && (
+                    <div className="customer-suggestions">
+                      {filteredCustomers.map((customer) => {
+                        const lastAssessed = formatLastAssessed(
+                          customer.lastAssessedAt
+                        );
+
+                        return (
+                          <button
+                            type="button"
+                            key={customer.email}
+                            className="customer-suggestion-item"
+                            onMouseDown={() => handleSelectCustomer(customer)}
+                          >
+                            <strong>{customer.name}</strong>
+                            <span>{customer.email}</span>
+                            <small>
+                              {lastAssessed
+                                ? `Last assessed ${lastAssessed}`
+                                : customer.hasAccount
+                                ? "Registered customer — no assessments yet"
+                                : ""}
+                            </small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Customer Gmail
-                  </label>
-
+                  <label>Customer Email</label>
                   <input
                     type="email"
                     name="customerEmail"
@@ -420,30 +396,16 @@ function App() {
                     placeholder="customer@gmail.com"
                     required
                   />
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* PERSONAL + EMPLOYMENT */}
-
             <div className="form-section">
-
-              <h3>
-                Personal & Employment
-              </h3>
+              <h3>Personal & Employment</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    Age
-                  </label>
-
+                  <label>Age</label>
                   <input
                     type="number"
                     name="age"
@@ -454,74 +416,33 @@ function App() {
                     placeholder="30"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Sex
-                  </label>
-
-                  <select
-                    name="sex"
-                    value={formData.sex}
-                    onChange={handleChange}
-                  >
-                    <option value="male">
-                      Male
-                    </option>
-
-                    <option value="female">
-                      Female
-                    </option>
+                  <label>Sex</label>
+                  <select name="sex" value={formData.sex} onChange={handleChange}>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
                   </select>
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Employment Type
-                  </label>
-
+                  <label>Employment Type</label>
                   <select
                     name="employment_type"
                     value={formData.employment_type}
                     onChange={handleChange}
                   >
-                    <option value="salaried">
-                      Salaried
-                    </option>
-
-                    <option value="business">
-                      Business
-                    </option>
-
-                    <option value="self_employed">
-                      Self Employed
-                    </option>
-
-                    <option value="contract">
-                      Contract
-                    </option>
-
-                    <option value="unemployed">
-                      Unemployed
-                    </option>
+                    <option value="salaried">Salaried</option>
+                    <option value="business">Business</option>
+                    <option value="self_employed">Self Employed</option>
+                    <option value="contract">Contract</option>
+                    <option value="unemployed">Unemployed</option>
                   </select>
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Employment Years
-                  </label>
-
+                  <label>Employment Years</label>
                   <input
                     type="number"
                     name="employment_years"
@@ -532,16 +453,10 @@ function App() {
                     placeholder="5.5"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Monthly Income (₹)
-                  </label>
-
+                  <label>Monthly Income (₹)</label>
                   <input
                     type="number"
                     name="monthly_income"
@@ -551,30 +466,16 @@ function App() {
                     placeholder="60000"
                     required
                   />
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* CREDIT HISTORY */}
-
             <div className="form-section">
-
-              <h3>
-                Credit History
-              </h3>
+              <h3>Credit History</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    CIBIL Score
-                  </label>
-
+                  <label>CIBIL Score</label>
                   <input
                     type="number"
                     name="cibil_score"
@@ -585,20 +486,11 @@ function App() {
                     placeholder="750"
                     required
                   />
-
-                  <small className="field-hint">
-                    Actual customer CIBIL score
-                  </small>
-
+                  <small className="field-hint">Actual customer CIBIL score</small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Past Loans
-                  </label>
-
+                  <label>Past Loans</label>
                   <input
                     type="number"
                     name="past_loans"
@@ -608,16 +500,10 @@ function App() {
                     placeholder="3"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Existing Loans
-                  </label>
-
+                  <label>Existing Loans</label>
                   <input
                     type="number"
                     name="existing_loans"
@@ -627,16 +513,10 @@ function App() {
                     placeholder="1"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    On-Time Payments
-                  </label>
-
+                  <label>On-Time Payments</label>
                   <input
                     type="number"
                     name="on_time_payments"
@@ -646,16 +526,10 @@ function App() {
                     placeholder="50"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Late Payments
-                  </label>
-
+                  <label>Late Payments</label>
                   <input
                     type="number"
                     name="late_payments"
@@ -665,16 +539,10 @@ function App() {
                     placeholder="2"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Defaults
-                  </label>
-
+                  <label>Defaults</label>
                   <input
                     type="number"
                     name="defaults"
@@ -684,30 +552,16 @@ function App() {
                     placeholder="0"
                     required
                   />
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* FINANCIAL HEALTH */}
-
             <div className="form-section">
-
-              <h3>
-                Financial Health
-              </h3>
+              <h3>Financial Health</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    Existing EMI (₹)
-                  </label>
-
+                  <label>Existing EMI (₹)</label>
                   <input
                     type="number"
                     name="existing_emi"
@@ -717,16 +571,10 @@ function App() {
                     placeholder="8000"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Credit Utilization (%)
-                  </label>
-
+                  <label>Credit Utilization (%)</label>
                   <input
                     type="number"
                     name="credit_utilization"
@@ -738,20 +586,11 @@ function App() {
                     placeholder="0.30"
                     required
                   />
-
-                  <small className="field-hint">
-                    Enter 0.30 for 30%
-                  </small>
-
+                  <small className="field-hint">Enter 0.30 for 30%</small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    DTI Ratio
-                  </label>
-
+                  <label>DTI Ratio</label>
                   <input
                     type="number"
                     name="dti_ratio"
@@ -763,20 +602,11 @@ function App() {
                     placeholder="0.25"
                     required
                   />
-
-                  <small className="field-hint">
-                    Enter 0.25 for 25%
-                  </small>
-
+                  <small className="field-hint">Enter 0.25 for 25%</small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Bank Balance (₹)
-                  </label>
-
+                  <label>Bank Balance (₹)</label>
                   <input
                     type="number"
                     name="bank_balance"
@@ -786,16 +616,10 @@ function App() {
                     placeholder="250000"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Savings Balance (₹)
-                  </label>
-
+                  <label>Savings Balance (₹)</label>
                   <input
                     type="number"
                     name="savings_balance"
@@ -805,30 +629,16 @@ function App() {
                     placeholder="100000"
                     required
                   />
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* NEW LOAN */}
-
             <div className="form-section">
-
-              <h3>
-                New Loan Details
-              </h3>
+              <h3>New Loan Details</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    New Loan Amount (₹)
-                  </label>
-
+                  <label>New Loan Amount (₹)</label>
                   <input
                     type="number"
                     name="new_loan_amount"
@@ -838,16 +648,10 @@ function App() {
                     placeholder="300000"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Loan Duration
-                  </label>
-
+                  <label>Loan Duration</label>
                   <input
                     type="number"
                     name="loan_duration_months"
@@ -857,205 +661,112 @@ function App() {
                     placeholder="36"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Loan Purpose
-                  </label>
-
+                  <label>Loan Purpose</label>
                   <select
                     name="loan_purpose"
                     value={formData.loan_purpose}
                     onChange={handleChange}
                   >
-
-                    <option value="home">
-                      Home
-                    </option>
-
-                    <option value="car">
-                      Car
-                    </option>
-
-                    <option value="education">
-                      Education
-                    </option>
-
-                    <option value="business">
-                      Business
-                    </option>
-
-                    <option value="personal">
-                      Personal
-                    </option>
-
-                    <option value="medical">
-                      Medical
-                    </option>
-
+                    <option value="home">Home</option>
+                    <option value="car">Car</option>
+                    <option value="education">Education</option>
+                    <option value="business">Business</option>
+                    <option value="personal">Personal</option>
+                    <option value="medical">Medical</option>
                   </select>
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* VERIFICATION */}
-
             <div className="form-section">
-
               <div className="verification-heading">
-
                 <div>
-                  <h3>
-                    Verification & Security
-                  </h3>
-
-                  <p>
-                    Confirm customer verification checks.
-                  </p>
+                  <h3>Verification & Security</h3>
+                  <p>Confirm customer verification checks.</p>
                 </div>
 
                 <div className="verification-count">
                   {getVerificationCount()}/4 Verified
                 </div>
-
               </div>
-
 
               <div className="verification-grid">
-
                 <label className="verification-item">
-
                   <input
                     type="checkbox"
-                    checked={
-                      Number(formData.identity_verified) === 1
-                    }
+                    checked={Number(formData.identity_verified) === 1}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        identity_verified:
-                          e.target.checked ? 1 : 0,
+                        identity_verified: e.target.checked ? 1 : 0,
                       })
                     }
                   />
-
-                  <span>
-                    Identity Verified
-                  </span>
-
+                  <span>Identity Verified</span>
                 </label>
 
-
                 <label className="verification-item">
-
                   <input
                     type="checkbox"
-                    checked={
-                      Number(formData.address_verified) === 1
-                    }
+                    checked={Number(formData.address_verified) === 1}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        address_verified:
-                          e.target.checked ? 1 : 0,
+                        address_verified: e.target.checked ? 1 : 0,
                       })
                     }
                   />
-
-                  <span>
-                    Address Verified
-                  </span>
-
+                  <span>Address Verified</span>
                 </label>
 
-
                 <label className="verification-item">
-
                   <input
                     type="checkbox"
-                    checked={
-                      Number(formData.employment_verified) === 1
-                    }
+                    checked={Number(formData.employment_verified) === 1}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        employment_verified:
-                          e.target.checked ? 1 : 0,
+                        employment_verified: e.target.checked ? 1 : 0,
                       })
                     }
                   />
-
-                  <span>
-                    Employment Verified
-                  </span>
-
+                  <span>Employment Verified</span>
                 </label>
 
-
                 <label className="verification-item">
-
                   <input
                     type="checkbox"
-                    checked={
-                      Number(formData.background_verified) === 1
-                    }
+                    checked={Number(formData.background_verified) === 1}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        background_verified:
-                          e.target.checked ? 1 : 0,
+                        background_verified: e.target.checked ? 1 : 0,
                       })
                     }
                   />
-
-                  <span>
-                    Background Verified
-                  </span>
-
+                  <span>Background Verified</span>
                 </label>
 
-
                 <label className="verification-item">
-
                   <input
                     type="checkbox"
-                    checked={
-                      Number(formData.collateral_available) === 1
-                    }
+                    checked={Number(formData.collateral_available) === 1}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        collateral_available:
-                          e.target.checked ? 1 : 0,
+                        collateral_available: e.target.checked ? 1 : 0,
                       })
                     }
                   />
-
-                  <span>
-                    Collateral Available
-                  </span>
-
+                  <span>Collateral Available</span>
                 </label>
-
               </div>
-
             </div>
 
-
-            <button
-              type="submit"
-              className="assess-button"
-              disabled={loading}
-            >
-
+            <button type="submit" className="assess-button" disabled={loading}>
               {loading ? (
                 <>
                   <span className="spinner"></span>
@@ -1067,865 +778,363 @@ function App() {
                   <span>→</span>
                 </>
               )}
-
             </button>
-
           </form>
-
         </section>
-        <button
-          type="button"
-          className="assess-button"
-          onClick={() => {
-            window.location.hash = "/employee-history";
-          }}
-          style={{
-            marginTop: "15px",
-          }}
-        >
+
+        <Link to="/employee-history" className="ghost-button" style={{ display: "inline-block", marginTop: 16, textDecoration: "none" }}>
           View Customer History →
-        </button>
-
-
-        {/* ==================================================
-            ERROR
-        ================================================== */}
+        </Link>
 
         {error && (
-
           <div className="error">
-
-            <strong>
-              Assessment Error
-            </strong>
-
-            <span>
-              {error}
-            </span>
-
+            <strong>Assessment Error</strong>
+            <span>{error}</span>
           </div>
-
         )}
 
-
-        {/* ==================================================
-            DASHBOARD RESULT
-        ================================================== */}
-
         {result && (
-
-          <section
-            id="assessment-result"
-            className="dashboard-result"
-          >
-
-            {/* RESULT HEADER */}
-
+          <section id="assessment-result" className="dashboard-result">
             <div className="result-header">
-
               <div>
-
-                <span className="eyebrow">
-                  ASSESSMENT COMPLETE
-                </span>
-
-                <h2>
-                  Credit Health Dashboard
-                </h2>
-
+                <span className="eyebrow">ASSESSMENT COMPLETE</span>
+                <h2>Credit Health Dashboard</h2>
                 <p>
-                  AI assessment for{" "}
-                  <strong>
-                    {result.customer?.name}
-                  </strong>
+                  AI assessment for <strong>{result.customer?.name}</strong>
                 </p>
-
               </div>
 
-
-              <div className="customer-email">
-                ✉ {result.customer?.email}
-              </div>
-
+              <div className="customer-email">✉ {result.customer?.email}</div>
             </div>
 
-
-            {/* MAIN SCORE CARDS */}
+            {result.ai_summary && (
+              <div className="dashboard-card ai-summary-card">
+                <span className="ai-tag">AI SUMMARY</span>
+                <p>{result.ai_summary}</p>
+              </div>
+            )}
 
             <div className="metrics-grid">
-
-              {/* DECISION */}
-
-              <div
-                className={`metric-card decision-card ${getRiskClass()}`}
-              >
-
+              <div className={`metric-card decision-card ${getRiskClass()}`}>
                 <div className="metric-top">
-
-                  <span>
-                    AI Decision
-                  </span>
-
-                  <span className="metric-icon">
-                    ◉
-                  </span>
-
+                  <span>AI Decision</span>
+                  <span className="metric-icon">◉</span>
                 </div>
-
-                <h3>
-                  {result.decision}
-                </h3>
-
-                <p>
-                  {result.risk_label}
-                </p>
-
+                <h3>{result.decision}</h3>
+                <p>{result.risk_label}</p>
               </div>
 
-
-              {/* AI RISK SCORE */}
-
               <div className="metric-card">
-
                 <div className="metric-top">
-
-                  <span>
-                    AI Risk Score
-                  </span>
-
-                  <span className="metric-icon">
-                    ◈
-                  </span>
-
+                  <span>AI Risk Score</span>
+                  <span className="metric-icon">◈</span>
                 </div>
-
                 <div className="score-number">
-
                   {result.credit_score}
-
-                  <small>
-                    /100
-                  </small>
-
+                  <small>/100</small>
                 </div>
-
                 <div className="progress-track">
-
                   <div
                     className="progress-fill"
-                    style={{
-                      width:
-                        `${result.credit_score}%`,
-                    }}
+                    style={{ width: `${result.credit_score}%` }}
                   ></div>
-
                 </div>
-
-                <p>
-                  Model confidence score
-                </p>
-
+                <p>Model confidence score</p>
               </div>
 
-
-              {/* CIBIL */}
-
               <div className="metric-card">
-
                 <div className="metric-top">
-
-                  <span>
-                    CIBIL Score
-                  </span>
-
-                  <span className="metric-icon">
-                    ★
-                  </span>
-
+                  <span>CIBIL Score</span>
+                  <span className="metric-icon">★</span>
                 </div>
-
-                <div
-                  className={`score-number ${getCibilClass()}`}
-                >
-
+                <div className={`score-number ${getCibilClass()}`}>
                   {formData.cibil_score}
-
-                  <small>
-                    /900
-                  </small>
-
+                  <small>/900</small>
                 </div>
-
-                <p>
-                  Customer's actual CIBIL score
-                </p>
-
+                <p>Customer's actual CIBIL score</p>
               </div>
 
-
-              {/* POOR CREDIT PROBABILITY */}
-
               <div className="metric-card">
-
                 <div className="metric-top">
-
-                  <span>
-                    Poor Credit Probability
-                  </span>
-
-                  <span className="metric-icon">
-                    !
-                  </span>
-
+                  <span>Poor Credit Probability</span>
+                  <span className="metric-icon">!</span>
                 </div>
-
                 <div className="score-number">
-
                   {result.poor_credit_probability}
-
-                  <small>
-                    %
-                  </small>
-
+                  <small>%</small>
                 </div>
-
                 <div className="progress-track">
-
                   <div
                     className="progress-fill danger"
-                    style={{
-                      width:
-                        `${result.poor_credit_probability}%`,
-                    }}
+                    style={{ width: `${result.poor_credit_probability}%` }}
                   ></div>
-
                 </div>
-
-                <p>
-                  Probability predicted by XGBoost
-                </p>
-
+                <p>Probability predicted by XGBoost</p>
               </div>
-
             </div>
 
-
-            {/* CHART AREA */}
-
             <div className="dashboard-grid">
-
-
-              {/* PROBABILITY CHART */}
-
               <div className="dashboard-card">
-
                 <div className="dashboard-card-header">
-
                   <div>
-
-                    <h3>
-                      Risk Probability
-                    </h3>
-
-                    <p>
-                      Model prediction distribution
-                    </p>
-
+                    <h3>Risk Probability</h3>
+                    <p>Model prediction distribution</p>
                   </div>
-
                 </div>
-
 
                 <div className="probability-chart">
-
                   <div className="probability-item">
-
                     <div className="probability-label">
-
-                      <span>
-                        Good Credit
-                      </span>
-
-                      <strong>
-                        {result.good_credit_probability}%
-                      </strong>
-
+                      <span>Good Credit</span>
+                      <strong>{result.good_credit_probability}%</strong>
                     </div>
-
                     <div className="chart-track">
-
                       <div
                         className="chart-bar good"
-                        style={{
-                          width:
-                            `${result.good_credit_probability}%`,
-                        }}
+                        style={{ width: `${result.good_credit_probability}%` }}
                       ></div>
-
                     </div>
-
                   </div>
-
 
                   <div className="probability-item">
-
                     <div className="probability-label">
-
-                      <span>
-                        Poor Credit
-                      </span>
-
-                      <strong>
-                        {result.poor_credit_probability}%
-                      </strong>
-
+                      <span>Poor Credit</span>
+                      <strong>{result.poor_credit_probability}%</strong>
                     </div>
-
                     <div className="chart-track">
-
                       <div
                         className="chart-bar poor"
-                        style={{
-                          width:
-                            `${result.poor_credit_probability}%`,
-                        }}
+                        style={{ width: `${result.poor_credit_probability}%` }}
                       ></div>
-
                     </div>
-
                   </div>
-
                 </div>
-
               </div>
 
-
-              {/* FINANCIAL PROFILE */}
-
               <div className="dashboard-card">
-
                 <div className="dashboard-card-header">
-
                   <div>
-
-                    <h3>
-                      Financial Profile
-                    </h3>
-
-                    <p>
-                      Key customer indicators
-                    </p>
-
+                    <h3>Financial Profile</h3>
+                    <p>Key customer indicators</p>
                   </div>
-
                 </div>
-
 
                 <div className="financial-bars">
-
                   <div className="financial-row">
-
-                    <span>
-                      Monthly Income
-                    </span>
-
-                    <strong>
-                      ₹{Number(
-                        formData.monthly_income
-                      ).toLocaleString()}
-                    </strong>
-
+                    <span>Monthly Income</span>
+                    <strong>₹{Number(formData.monthly_income).toLocaleString()}</strong>
                   </div>
 
-
                   <div className="financial-row">
-
-                    <span>
-                      Bank Balance
-                    </span>
-
-                    <strong>
-                      ₹{Number(
-                        formData.bank_balance
-                      ).toLocaleString()}
-                    </strong>
-
+                    <span>Bank Balance</span>
+                    <strong>₹{Number(formData.bank_balance).toLocaleString()}</strong>
                   </div>
 
-
                   <div className="financial-row">
-
-                    <span>
-                      Savings
-                    </span>
-
-                    <strong>
-                      ₹{Number(
-                        formData.savings_balance
-                      ).toLocaleString()}
-                    </strong>
-
+                    <span>Savings</span>
+                    <strong>₹{Number(formData.savings_balance).toLocaleString()}</strong>
                   </div>
 
-
                   <div className="financial-row">
-
-                    <span>
-                      Existing EMI
-                    </span>
-
-                    <strong>
-                      ₹{Number(
-                        formData.existing_emi
-                      ).toLocaleString()}
-                    </strong>
-
+                    <span>Existing EMI</span>
+                    <strong>₹{Number(formData.existing_emi).toLocaleString()}</strong>
                   </div>
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* CREDIT BEHAVIOR */}
-
             <div className="dashboard-grid">
-
               <div className="dashboard-card">
-
                 <div className="dashboard-card-header">
-
                   <div>
-
-                    <h3>
-                      Payment Behavior
-                    </h3>
-
-                    <p>
-                      Historical loan repayment profile
-                    </p>
-
+                    <h3>Payment Behavior</h3>
+                    <p>Historical loan repayment profile</p>
                   </div>
-
                 </div>
 
-
                 <div className="behavior-chart">
-
                   <div className="behavior-column">
-
                     <div
                       className="vertical-bar ontime"
                       style={{
-                        height:
-                          `${Math.min(
-                            Number(
-                              formData.on_time_payments
-                            ) * 4,
-                            150
-                          )}px`,
+                        height: `${Math.min(Number(formData.on_time_payments) * 4, 150)}px`,
                       }}
                     ></div>
-
-                    <strong>
-                      {formData.on_time_payments}
-                    </strong>
-
-                    <span>
-                      On Time
-                    </span>
-
+                    <strong>{formData.on_time_payments}</strong>
+                    <span>On Time</span>
                   </div>
 
-
                   <div className="behavior-column">
-
                     <div
                       className="vertical-bar late"
                       style={{
-                        height:
-                          `${Math.min(
-                            Number(
-                              formData.late_payments
-                            ) * 10,
-                            150
-                          )}px`,
+                        height: `${Math.min(Number(formData.late_payments) * 10, 150)}px`,
                       }}
                     ></div>
-
-                    <strong>
-                      {formData.late_payments}
-                    </strong>
-
-                    <span>
-                      Late
-                    </span>
-
+                    <strong>{formData.late_payments}</strong>
+                    <span>Late</span>
                   </div>
 
-
                   <div className="behavior-column">
-
                     <div
                       className="vertical-bar defaults"
                       style={{
-                        height:
-                          `${Math.max(
-                            Number(
-                              formData.defaults
-                            ) * 30,
-                            8
-                          )}px`,
+                        height: `${Math.max(Number(formData.defaults) * 30, 8)}px`,
                       }}
                     ></div>
-
-                    <strong>
-                      {formData.defaults}
-                    </strong>
-
-                    <span>
-                      Defaults
-                    </span>
-
+                    <strong>{formData.defaults}</strong>
+                    <span>Defaults</span>
                   </div>
 
-
                   <div className="behavior-column">
-
                     <div
                       className="vertical-bar loans"
                       style={{
-                        height:
-                          `${Math.min(
-                            Number(
-                              formData.past_loans
-                            ) * 25,
-                            150
-                          )}px`,
+                        height: `${Math.min(Number(formData.past_loans) * 25, 150)}px`,
                       }}
                     ></div>
-
-                    <strong>
-                      {formData.past_loans}
-                    </strong>
-
-                    <span>
-                      Past Loans
-                    </span>
-
+                    <strong>{formData.past_loans}</strong>
+                    <span>Past Loans</span>
                   </div>
-
                 </div>
-
               </div>
-
-
-              {/* VERIFICATION STATUS */}
 
               <div className="dashboard-card">
-
                 <div className="dashboard-card-header">
-
                   <div>
-
-                    <h3>
-                      Verification Status
-                    </h3>
-
-                    <p>
-                      Customer due-diligence checks
-                    </p>
-
+                    <h3>Verification Status</h3>
+                    <p>Customer due-diligence checks</p>
                   </div>
-
-                  <div className="verification-score">
-                    {getVerificationCount()}/4
-                  </div>
-
+                  <div className="verification-score">{getVerificationCount()}/4</div>
                 </div>
-
 
                 <div className="verification-list">
-
                   <div className="status-row">
-
-                    <span>
-                      Identity
-                    </span>
-
-                    <strong className={
-                      Number(formData.identity_verified)
-                        ? "verified"
-                        : "not-verified"
-                    }>
-                      {Number(
-                        formData.identity_verified
-                      )
-                        ? "✓ Verified"
-                        : "✕ Not Verified"}
+                    <span>Identity</span>
+                    <strong
+                      className={
+                        Number(formData.identity_verified) ? "verified" : "not-verified"
+                      }
+                    >
+                      {Number(formData.identity_verified) ? "✓ Verified" : "✕ Not Verified"}
                     </strong>
-
                   </div>
 
-
                   <div className="status-row">
-
-                    <span>
-                      Address
-                    </span>
-
-                    <strong className={
-                      Number(formData.address_verified)
-                        ? "verified"
-                        : "not-verified"
-                    }>
-                      {Number(
-                        formData.address_verified
-                      )
-                        ? "✓ Verified"
-                        : "✕ Not Verified"}
+                    <span>Address</span>
+                    <strong
+                      className={
+                        Number(formData.address_verified) ? "verified" : "not-verified"
+                      }
+                    >
+                      {Number(formData.address_verified) ? "✓ Verified" : "✕ Not Verified"}
                     </strong>
-
                   </div>
 
-
                   <div className="status-row">
-
-                    <span>
-                      Employment
-                    </span>
-
-                    <strong className={
-                      Number(formData.employment_verified)
-                        ? "verified"
-                        : "not-verified"
-                    }>
-                      {Number(
-                        formData.employment_verified
-                      )
-                        ? "✓ Verified"
-                        : "✕ Not Verified"}
+                    <span>Employment</span>
+                    <strong
+                      className={
+                        Number(formData.employment_verified) ? "verified" : "not-verified"
+                      }
+                    >
+                      {Number(formData.employment_verified) ? "✓ Verified" : "✕ Not Verified"}
                     </strong>
-
                   </div>
 
-
                   <div className="status-row">
-
-                    <span>
-                      Background
-                    </span>
-
-                    <strong className={
-                      Number(formData.background_verified)
-                        ? "verified"
-                        : "not-verified"
-                    }>
-                      {Number(
-                        formData.background_verified
-                      )
-                        ? "✓ Verified"
-                        : "✕ Not Verified"}
+                    <span>Background</span>
+                    <strong
+                      className={
+                        Number(formData.background_verified) ? "verified" : "not-verified"
+                      }
+                    >
+                      {Number(formData.background_verified) ? "✓ Verified" : "✕ Not Verified"}
                     </strong>
-
                   </div>
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* EMAIL RESULT */}
-
-            <div
-              style={{
-                marginTop: "25px",
-                marginBottom: "25px",
-                textAlign: "center",
-              }}
-            >
+            <div style={{ marginTop: 25, marginBottom: 25, textAlign: "center" }}>
               <button
                 type="button"
                 className="assess-button"
                 onClick={sendResultToCustomer}
                 disabled={sendingEmail}
               >
-                {sendingEmail
-                  ? "📧 Sending Email..."
-                  : "📧 Send Result to Customer"}
+                {sendingEmail ? "📧 Sending Email..." : "📧 Send Result to Customer"}
               </button>
 
               {emailStatus && (
-                <p
-                  style={{
-                    marginTop: "12px",
-                    fontWeight: "600",
-                  }}
-                >
-                  {emailStatus}
-                </p>
+                <p style={{ marginTop: 12, fontWeight: 600 }}>{emailStatus}</p>
               )}
             </div>
 
-
-            {/* SHAP EXPLANATION */}
-
             <div className="dashboard-card shap-card">
-
               <div className="dashboard-card-header">
-
                 <div>
-
-                  <span className="ai-tag">
-                    EXPLAINABLE AI
-                  </span>
-
-                  <h3>
-                    Why did the model make this decision?
-                  </h3>
-
-                  <p>
-                    SHAP shows which features influenced
-                    the XGBoost prediction.
-                  </p>
-
+                  <span className="ai-tag">EXPLAINABLE AI</span>
+                  <h3>Why did the model make this decision?</h3>
+                  <p>SHAP shows which features influenced the XGBoost prediction.</p>
                 </div>
-
               </div>
-
 
               <div className="shap-list">
+                {result.explanation?.map((item, index) => {
+                  const magnitude = Math.min(Math.abs(Number(item.impact)) * 35, 100);
+                  const reducesRisk = item.direction === "reduces_risk";
 
-                {result.explanation?.map(
-                  (item, index) => {
+                  return (
+                    <div className="shap-row" key={index}>
+                      <div className="shap-rank">{index + 1}</div>
 
-                    const magnitude =
-                      Math.min(
-                        Math.abs(
-                          Number(item.impact)
-                        ) * 35,
-                        100
-                      );
-
-                    const reducesRisk =
-                      item.direction ===
-                      "reduces_risk";
-
-                    return (
-
-                      <div
-                        className="shap-row"
-                        key={index}
-                      >
-
-                        <div className="shap-rank">
-                          {index + 1}
+                      <div className="shap-feature">
+                        <div className="shap-feature-name">{item.feature}</div>
+                        <div className="shap-track">
+                          <div
+                            className={`shap-bar ${reducesRisk ? "positive" : "negative"}`}
+                            style={{ width: `${magnitude}%` }}
+                          ></div>
                         </div>
-
-
-                        <div className="shap-feature">
-
-                          <div className="shap-feature-name">
-                            {item.feature}
-                          </div>
-
-                          <div className="shap-track">
-
-                            <div
-                              className={
-                                `shap-bar ${
-                                  reducesRisk
-                                    ? "positive"
-                                    : "negative"
-                                }`
-                              }
-                              style={{
-                                width:
-                                  `${magnitude}%`,
-                              }}
-                            ></div>
-
-                          </div>
-
-                        </div>
-
-
-                        <div
-                          className={
-                            `shap-impact ${
-                              reducesRisk
-                                ? "positive-text"
-                                : "negative-text"
-                            }`
-                          }
-                        >
-
-                          {Number(item.impact) > 0
-                            ? "+"
-                            : ""}
-
-                          {Number(
-                            item.impact
-                          ).toFixed(3)}
-
-                        </div>
-
-
-                        <div className="shap-direction">
-
-                          {reducesRisk
-                            ? "↓ Lower Risk"
-                            : "↑ Higher Risk"}
-
-                        </div>
-
                       </div>
 
-                    );
-                  }
-                )}
+                      <div
+                        className={`shap-impact ${
+                          reducesRisk ? "positive-text" : "negative-text"
+                        }`}
+                      >
+                        {Number(item.impact) > 0 ? "+" : ""}
+                        {Number(item.impact).toFixed(3)}
+                      </div>
 
+                      <div className="shap-direction">
+                        {reducesRisk ? "↓ Lower Risk" : "↑ Higher Risk"}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
             </div>
-
-
-            {/* FOOTER NOTE */}
 
             <div className="model-note">
-
-              <div className="model-note-icon">
-                ✦
-              </div>
+              <div className="model-note-icon">✦</div>
 
               <div>
-
-                <strong>
-                  Explainable AI Assessment
-                </strong>
-
+                <strong>Explainable AI Assessment</strong>
                 <p>
-                  This assessment combines customer
-                  financial information, credit history,
-                  verification data and an XGBoost model.
-                  SHAP provides feature-level explanations
-                  for the prediction.
+                  This assessment combines customer financial information,
+                  credit history, verification data and an XGBoost model.
+                  SHAP provides feature-level explanations for the
+                  prediction.
                 </p>
-
               </div>
-
             </div>
-
           </section>
         )}
-
       </main>
-
     </div>
   );
 }
 
-export default App;
+export default EmployeeDashboard;

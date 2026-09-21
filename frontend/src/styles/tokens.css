@@ -1,0 +1,89 @@
+:root {
+  color-scheme: dark;
+
+  /* Brand accent — muted sage green, matching the reference console */
+  --color-accent: #3ecf8e;
+  --color-accent-600: #2fb87a;
+  --color-accent-100: #0f2a1e;
+  --color-accent-text: #4ade80;
+  --text-on-accent: #06150e;
+
+  /* Status colors — success shares the same green as the accent,
+     matching the reference where "Delivered" and the brand color
+     are the same hue */
+  --color-success: #3ecf8e;
+  --color-success-bg: #0f2a1e;
+  --color-success-text: #4ade80;
+
+  --color-danger: #e2685a;
+  --color-danger-bg: #2e1512;
+  --color-danger-text: #f2a498;
+
+  --color-warning: #d9a53d;
+  --color-warning-bg: #2a2010;
+  --color-warning-text: #edc576;
+
+  /* Surfaces — true black console */
+  --bg-page: #050505;
+  --bg-surface: #0d0d0f;
+  --bg-muted: #131315;
+  --bg-inset: #18181b;
+  --bg-elevated: #0d0d0f;
+  --bg-sidebar: #030303;
+
+  /* Text */
+  --text-primary: #f5f5f6;
+  --text-secondary: #9a9aa1;
+  --text-muted: #6b6b70;
+  --text-inverse: #06150e;
+
+  /* Borders */
+  --border-subtle: #1a1a1d;
+  --border-strong: #29292d;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.65);
+  --shadow-focus: 0 0 0 3px rgba(62, 207, 142, 0.32);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 420ms;
+
+  /* Typography */
+  --font-serif: "Fraunces", "Georgia", serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Sidebar layout */
+  --sidebar-width: 248px;
+
+  /* Dotted-grid texture (used behind timeline/score panels) */
+  --dot-grid: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.09) 1px,
+    transparent 1px
+  );
+}

@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { signUp } from "../firebase/auth";
+import { useToast } from "../context/useToast";
+
 function CustomerSignup() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -31,36 +35,14 @@ function CustomerSignup() {
     setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/signup",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...formData,
-            role: "customer",
-          }),
-        }
-      );
+      await signUp({ ...formData, role: "customer" });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Signup failed"
-        );
-      }
-
-      setMessage(
-        "Account created successfully!"
-      );
+      setMessage("Account created successfully!");
+      toast.success("Account created — please log in.");
 
       setTimeout(() => {
         navigate("/customer-login");
-      }, 1500);
-
+      }, 1200);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -70,25 +52,17 @@ function CustomerSignup() {
 
   return (
     <div className="auth-page">
-
       <div className="auth-card">
-
-        <div className="brand-icon">
-          CG
-        </div>
+        <div className="brand-icon">CG</div>
 
         <h1>
           CreditGuard <span>AI</span>
         </h1>
 
-        <p className="auth-subtitle">
-          Customer Registration
-        </p>
+        <p className="auth-subtitle">Customer Registration</p>
 
         <form onSubmit={handleSignup}>
-
           <label>Full Name</label>
-
           <input
             type="text"
             name="name"
@@ -99,7 +73,6 @@ function CustomerSignup() {
           />
 
           <label>Email</label>
-
           <input
             type="email"
             name="email"
@@ -110,7 +83,6 @@ function CustomerSignup() {
           />
 
           <label>Phone Number</label>
-
           <input
             type="tel"
             name="phone"
@@ -121,7 +93,6 @@ function CustomerSignup() {
           />
 
           <label>Username</label>
-
           <input
             type="text"
             name="username"
@@ -132,61 +103,35 @@ function CustomerSignup() {
           />
 
           <label>Password</label>
-
           <input
             type="password"
             name="password"
-            placeholder="Create password"
+            placeholder="Create password (min 6 characters)"
             value={formData.password}
             onChange={handleChange}
+            minLength={6}
             required
           />
 
-          {message && (
-            <div className="success-message">
-              {message}
-            </div>
-          )}
+          {message && <div className="success-message">{message}</div>}
+          {error && <div className="error-message">{error}</div>}
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Creating Account..."
-              : "Create Customer Account"}
+          <button type="submit" disabled={loading}>
+            {loading ? "Creating Account..." : "Create Customer Account"}
           </button>
-
         </form>
 
         <p className="auth-switch">
           Already have an account?
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/customer-login")
-            }
-          >
+          <button type="button" onClick={() => navigate("/customer-login")}>
             Login
           </button>
         </p>
 
-        <button
-          className="back-button"
-          onClick={() => navigate("/")}
-        >
+        <button className="back-button" onClick={() => navigate("/")}>
           ← Back to Welcome
         </button>
-
       </div>
-
     </div>
   );
 }

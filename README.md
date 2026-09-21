@@ -1,125 +1,134 @@
-# Credit Risk Scorecard
+# CreditGuard AI
 
 An explainable and fair machine learning-based credit risk assessment system that predicts customer credit risk and provides transparent explanations for the prediction.
 
 ## 📌 Project Overview
 
-The Credit Risk Scorecard is a web-based application designed to assist in evaluating the credit risk of customers.
-
-The system accepts customer financial information, uses a machine learning model to predict credit risk, and provides explanations for the prediction. It also maintains customer history and can send the prediction result and explanation to the customer's email.
+CreditGuard AI is a web-based application for evaluating customer credit risk. It accepts a customer's financial information, uses an XGBoost model to predict credit risk, and explains the prediction with SHAP. Accounts, roles and assessment history are backed by Firebase; the ML/SHAP inference runs in a small stateless Flask service deployed on Cloud Run.
 
 ## ✨ Key Features
 
-- Credit risk prediction using Machine Learning
-- Customer registration and login
-- Employee registration and login
-- Customer dashboard
-- Employee dashboard
-- Customer prediction history
-- Employee history management
-- Explainable AI for prediction results
-- Fairness and bias analysis
-- Email notification containing prediction results and explanations
-- Frontend and backend integration through APIs
+- Credit risk prediction using an explainable XGBoost model (SHAP)
+- Firebase Authentication for customer and employee accounts
+- One permanent super admin (`manidharc@gmail.com`) who can promote any employee to **Admin** and revoke that privilege at any time, from the in-app Admin Panel
+- Customer self-assessment (not stored) and employee-run assessments (stored in Firestore, shared history across employees/admins)
+- Email notification of the assessment result to the customer
+- Professional, animated UI with route transitions and micro-interactions
 
-## 🏗️ System Workflow
+## 🏗️ System Architecture
 
-Customer / Employee
-        ↓
-React Frontend
-        ↓
-Backend REST API
-        ↓
-Machine Learning Model
-        ↓
-Credit Risk Prediction
-        ↓
-Explanation & Fairness Analysis
-        ↓
-Database / History
-        ↓
-Email Notification
+```
+React (Vite) frontend
+   ├─ Firebase Auth        → signup / login / session
+   ├─ Firestore            → users, customers, assessments (direct client reads/writes, gated by security rules)
+   └─ Cloud Run (Flask)    → POST /predict, /customer/predict (ML + SHAP, stateless), /send-result (email)
+```
 
 ## 🛠️ Technologies Used
 
 ### Frontend
-- React.js
-- Vite
-- JavaScript
-- CSS
+- React 19, React Router, Vite
+- Firebase Auth + Firestore (client SDK)
+- Hand-written CSS design system (custom properties, transitions/keyframe animations)
 
-### Backend
-- Python
-- Flask
-- REST API
+### ML Backend (Cloud Run)
+- Python, Flask
+- Pandas, NumPy, Scikit-learn, XGBoost
+- SHAP for explainability
 
-### Machine Learning
-- Pandas
-- NumPy
-- Scikit-learn
-- SHAP / Explainability techniques
-
-### Database
-- SQLite
-
-### Other
-- Git
-- GitHub
-- Email integration
+### Accounts & Data
+- Firebase Authentication (email/password)
+- Firestore (users, customers, assessments)
 
 ## 👥 User Roles
 
-### Customer
-- Create an account
-- Login securely
-- Enter required details
-- View credit risk prediction
-- View prediction explanation
-- View previous prediction history
-- Receive prediction results and explanations through email
+- **Customer** — self-assess credit risk (not persisted), view explanation and improvement advice.
+- **Employee** — run assessments for customers (persisted to Firestore), view shared assessment history, email results to customers.
+- **Admin** — an employee promoted by the super admin; same access as Employee plus the Admin Panel (view all users).
+- **Super Admin** — permanently `manidharc@gmail.com`, enforced in Firestore security rules against the verified auth token email (not client-controlled). Can promote/demote any employee's Admin status at any time.
 
-### Employee
-- Create an employee account
-- Login
-- Access employee dashboard
-- View customer-related information
-- View prediction history
+## 🚀 Setup
 
-## 🔍 Explainability
+### 1. Firebase project
 
-The system provides an explanation of the machine learning prediction so that users can understand the factors contributing to the predicted credit risk.
+1. Create a project at the [Firebase Console](https://console.firebase.google.com/).
+2. Enable **Authentication → Sign-in method → Email/Password**.
+3. Enable **Firestore Database** (production mode).
+4. Add a Web app to the project and copy its config.
+5. Copy `frontend/.env.example` to `frontend/.env` and fill in the `VITE_FIREBASE_*` values.
+6. Install the Firebase CLI and deploy the security rules from the repo root:
 
-## ⚖️ Fairness
+   ```bash
+   npm i -g firebase-tools
+   firebase login
+   firebase use --add        # select your project
+   firebase deploy --only firestore:rules,firestore:indexes
+   ```
 
-The project also considers fairness in machine learning by evaluating model behaviour across relevant customer groups and identifying potential differences in model outcomes.
+### 2. ML backend (Cloud Run)
 
-## 📧 Email Notifications
+```bash
+cd backend
+# local dev
+pip install -r requirements.txt
+python app.py            # runs on http://127.0.0.1:5000
 
-After a credit risk assessment, the system can send the customer an email containing:
+# deploy to Cloud Run
+gcloud auth login
+gcloud config set project <your-project-id>
+gcloud run deploy creditguard-ml \
+  --source . \
+  --region <region> \
+  --allow-unauthenticated \
+  --set-env-vars SENDGRID_API_KEY=<sendgrid-api-key>,SENDGRID_FROM_EMAIL=<verified-sender-email>,ALLOWED_ORIGIN=<frontend-url>,GROQ_API_KEY=<groq-api-key>
+```
 
-- Credit risk result
-- Prediction information
-- Explanation of the result
+Put the deployed Cloud Run URL into `frontend/.env` as `VITE_API_BASE_URL` (defaults to `http://127.0.0.1:5000` for local dev).
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Bootstrap the super admin
+
+Sign up once through the Employee portal using `manidharc@gmail.com`. The Firestore security rules automatically grant that account super-admin status. From there, open the **Admin Panel** to promote other employees to Admin.
 
 ## 📁 Project Structure
 
 ```text
-Credit-Risk-Project/
+credit-risk-scorecard/
 │
-├── backend/
-│   ├── data/
+├── backend/                 # Stateless ML service (Cloud Run)
 │   ├── ml/
 │   ├── models/
 │   ├── app.py
-│   └── database.py
+│   ├── requirements.txt
+│   └── Dockerfile
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   ├── App.jsx
-│   │   └── App.css
+│   │   ├── components/
+│   │   ├── context/         # Auth + Toast providers
+│   │   ├── firebase/        # Firebase config + auth helpers
+│   │   └── styles/          # Design system (tokens, base, components, animations, pages)
 │   ├── package.json
 │   └── vite.config.js
 │
-├── .gitignore
+├── firebase.json
+├── firestore.rules
+├── firestore.indexes.json
 └── README.md
+```
+
+## 🔍 Explainability
+
+SHAP values from the XGBoost model are translated into plain-language, customer-friendly explanations and improvement advice. When `GROQ_API_KEY` is set, an additional AI-written summary paragraph (via Groq, model `openai/gpt-oss-20b`) narrates those same SHAP-derived factors in natural prose — the LLM is only ever given the already-computed facts and instructed not to introduce new ones, so it can't hallucinate a reason the model didn't actually use. This is optional: without a key, `ai_summary` is simply `null` and nothing else changes.
+
+## ⚖️ Fairness
+
+See `backend/ml/fairness.py` for the fairness/bias analysis used during model development.

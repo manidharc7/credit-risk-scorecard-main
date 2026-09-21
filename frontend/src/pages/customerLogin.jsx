@@ -1,14 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { logIn, resetPassword } from "../firebase/auth";
+import { useToast } from "../context/useToast";
+import { SocialAuthButtons } from "../components/SocialAuthButtons";
+import { CompleteProfileForm } from "../components/CompleteProfileForm";
+
 function CustomerLogin() {
   const navigate = useNavigate();
+  const toast = useToast();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingUser, setPendingUser] = useState(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -17,37 +25,10 @@ function CustomerLogin() {
     setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username,
-            password,
-            role: "customer",
-          }),
-        }
-      );
+      await logIn({ email, password, expectedRole: "customer" });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Login failed"
-        );
-      }
-
-      // Store logged-in customer information
-      localStorage.setItem(
-        "user",
-        JSON.stringify(data.user)
-      );
-
+      toast.success("Welcome back!");
       navigate("/customer-dashboard");
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -55,88 +36,114 @@ function CustomerLogin() {
     }
   };
 
+  const handleSocialSuccess = () => {
+    toast.success("Welcome back!");
+    navigate("/customer-dashboard");
+  };
+
+  const handleProfileComplete = () => {
+    toast.success("Account created — welcome!");
+    navigate("/customer-dashboard");
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Enter your email above first, then click Forgot password?");
+      return;
+    }
+
+    setResetLoading(true);
+    setError("");
+
+    try {
+      await resetPassword(email);
+      toast.success(`Password reset email sent to ${email}.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="auth-page">
-
       <div className="auth-card">
-
-        <div className="brand-icon">
-          CG
-        </div>
+        <div className="brand-icon">CG</div>
 
         <h1>
           CreditGuard <span>AI</span>
         </h1>
 
-        <p className="auth-subtitle">
-          Customer Login
-        </p>
+        <p className="auth-subtitle">Customer Login</p>
 
-        <form onSubmit={handleLogin}>
-
-          <label>Username</label>
-
-          <input
-            type="text"
-            placeholder="Enter username"
-            value={username}
-            onChange={(e) =>
-              setUsername(e.target.value)
-            }
-            required
+        {pendingUser ? (
+          <CompleteProfileForm
+            role="customer"
+            firebaseUser={pendingUser}
+            onDone={handleProfileComplete}
           />
+        ) : (
+          <>
+            <form onSubmit={handleLogin}>
+              <label>Email</label>
 
-          <label>Password</label>
+              <input
+                type="email"
+                placeholder="yourname@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
 
-          <input
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) =>
-              setPassword(e.target.value)
-            }
-            required
-          />
+              <div className="field-label-row">
+                <label>Password</label>
+                <button
+                  type="button"
+                  className="inline-link-button"
+                  onClick={handleForgotPassword}
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? "Sending..." : "Forgot password?"}
+                </button>
+              </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+              <input
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
 
-          <button
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Logging in..."
-              : "Login"}
-          </button>
+              {error && <div className="error-message">{error}</div>}
 
-        </form>
+              <button type="submit" disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
+              </button>
+            </form>
 
-        <p className="auth-switch">
-          New customer?
+            <SocialAuthButtons
+              role="customer"
+              onSuccess={handleSocialSuccess}
+              onNeedsProfile={setPendingUser}
+            />
 
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/customer-signup")
-            }
-          >
-            Create Account
-          </button>
-        </p>
+            <p className="auth-switch">
+              New customer?
+              <button
+                type="button"
+                onClick={() => navigate("/customer-signup")}
+              >
+                Create Account
+              </button>
+            </p>
 
-        <button
-          className="back-button"
-          onClick={() => navigate("/")}
-        >
-          ← Back to Welcome
-        </button>
-
+            <button className="back-button" onClick={() => navigate("/")}>
+              ← Back to Welcome
+            </button>
+          </>
+        )}
       </div>
-
     </div>
   );
 }

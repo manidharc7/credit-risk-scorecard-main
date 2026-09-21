@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+
+import { Sidebar } from "../components/Sidebar";
+import { API_BASE_URL } from "../firebase/config";
+import { saveAssessment } from "../firebase/assessments";
+import { useAuth } from "../context/useAuth";
+import { useToast } from "../context/useToast";
 
 function CustomerDashboard() {
-  const navigate = useNavigate();
-
-  const user = JSON.parse(
-    localStorage.getItem("user") || "{}"
-  );
+  const { user, profile } = useAuth();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     age: "",
@@ -22,7 +24,6 @@ function CustomerDashboard() {
     existing_loans: "",
     existing_emi: "",
     credit_utilization: "",
-    dti_ratio: "",
     bank_balance: "",
     savings_balance: "",
     new_loan_amount: "",
@@ -55,82 +56,85 @@ function CustomerDashboard() {
     setError("");
     setResult(null);
 
-    try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/customer/predict",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...formData,
+    const monthlyIncome = Number(formData.monthly_income);
+    const existingEmi = Number(formData.existing_emi);
 
-            age: Number(formData.age),
-            employment_years: Number(formData.employment_years),
-            monthly_income: Number(formData.monthly_income),
-            cibil_score: Number(formData.cibil_score),
-            past_loans: Number(formData.past_loans),
-            on_time_payments: Number(formData.on_time_payments),
-            late_payments: Number(formData.late_payments),
-            defaults: Number(formData.defaults),
-            existing_loans: Number(formData.existing_loans),
-            existing_emi: Number(formData.existing_emi),
-            credit_utilization: Number(formData.credit_utilization),
-            dti_ratio: Number(formData.dti_ratio),
-            bank_balance: Number(formData.bank_balance),
-            savings_balance: Number(formData.savings_balance),
-            new_loan_amount: Number(formData.new_loan_amount),
-            loan_duration_months: Number(
-              formData.loan_duration_months
-            ),
-            identity_verified: Number(
-              formData.identity_verified
-            ),
-            address_verified: Number(
-              formData.address_verified
-            ),
-            employment_verified: Number(
-              formData.employment_verified
-            ),
-            background_verified: Number(
-              formData.background_verified
-            ),
-            collateral_available: Number(
-              formData.collateral_available
-            ),
-          }),
-        }
-      );
+    // The debt-to-income ratio is a banking term most customers won't
+    // know off-hand, but it's just existing monthly loan payments divided
+    // by monthly income — so we calculate it instead of asking for it.
+    const dtiRatio = monthlyIncome > 0 ? existingEmi / monthlyIncome : 0;
+
+    const payload = {
+      ...formData,
+
+      age: Number(formData.age),
+      employment_years: Number(formData.employment_years),
+      monthly_income: monthlyIncome,
+      cibil_score: Number(formData.cibil_score),
+      past_loans: Number(formData.past_loans),
+      on_time_payments: Number(formData.on_time_payments),
+      late_payments: Number(formData.late_payments),
+      defaults: Number(formData.defaults),
+      existing_loans: Number(formData.existing_loans),
+      existing_emi: existingEmi,
+      credit_utilization: Number(formData.credit_utilization) / 100,
+      dti_ratio: dtiRatio,
+      bank_balance: Number(formData.bank_balance),
+      savings_balance: Number(formData.savings_balance),
+      new_loan_amount: Number(formData.new_loan_amount),
+      loan_duration_months: Number(formData.loan_duration_months),
+      identity_verified: Number(formData.identity_verified),
+      address_verified: Number(formData.address_verified),
+      employment_verified: Number(formData.employment_verified),
+      background_verified: Number(formData.background_verified),
+      collateral_available: Number(formData.collateral_available),
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/customer/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Assessment failed"
-        );
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Assessment failed");
       }
 
       setResult(data);
 
+      try {
+        await saveAssessment({
+          payload,
+          apiResult: data,
+          customerName: profile?.name || "",
+          customerEmail: profile?.email || "",
+          customerUid: user.uid,
+          performedBy: user.uid,
+          source: "self",
+        });
+      } catch (persistError) {
+        toast.error(
+          "Report generated, but saving it to your profile failed: " +
+            persistError.message
+        );
+      }
+
       setTimeout(() => {
         document
           .getElementById("customer-result")
-          ?.scrollIntoView({
-            behavior: "smooth",
-          });
+          ?.scrollIntoView({ behavior: "smooth" });
       }, 200);
-
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("user");
-    navigate("/");
   };
 
   const featureNames = {
@@ -162,64 +166,11 @@ function CustomerDashboard() {
 
   return (
     <div className="customer-page">
-
-      {/* =====================================================
-          NAVBAR
-      ===================================================== */}
-
-      <header className="navbar">
-
-        <div className="brand">
-
-          <div className="brand-icon">
-            CG
-          </div>
-
-          <div>
-
-            <div className="logo">
-              CreditGuard <span>AI</span>
-            </div>
-
-            <div className="nav-subtitle">
-              Customer Portal
-            </div>
-
-          </div>
-
-        </div>
-
-        <div className="customer-nav">
-
-          <span>
-            Welcome, {user.name || "Customer"}
-          </span>
-
-          <button onClick={logout}>
-            Logout
-          </button>
-
-        </div>
-
-      </header>
-
-
-      {/* =====================================================
-          MAIN
-      ===================================================== */}
+      <Sidebar portal="customer" />
 
       <main className="customer-container">
-
-
-        {/* ===================================================
-            HERO
-        =================================================== */}
-
         <section className="customer-hero">
-
-          <span className="eyebrow">
-            PERSONAL CREDIT ASSESSMENT
-          </span>
+          <span className="eyebrow">PERSONAL CREDIT ASSESSMENT</span>
 
           <h1>
             Check Your
@@ -227,65 +178,33 @@ function CustomerDashboard() {
           </h1>
 
           <p>
-            Enter your financial information to
-            understand your credit risk and discover
-            ways to improve your credit profile.
+            Answer a few simple questions about your money and job to see
+            your credit risk and get tips to improve it. Not sure about a
+            term? Each question has a plain-English explanation below it.
           </p>
-
         </section>
 
-
-        {/* ===================================================
-            FORM
-        =================================================== */}
-
         <section className="card customer-form-card">
-
           <div className="section-heading">
-
             <div>
-
-              <span className="section-number">
-                01
-              </span>
+              <span className="section-number">01</span>
 
               <div>
-
-                <h2>
-                  Your Financial Information
-                </h2>
-
+                <h2>Tell Us About Yourself</h2>
                 <p>
-                  Enter accurate information for a
-                  better assessment.
+                  Rough numbers are fine — this doesn't need to be exact.
                 </p>
-
               </div>
-
             </div>
-
           </div>
 
-
           <form onSubmit={assessRisk}>
-
-
-            {/* PERSONAL & EMPLOYMENT */}
-
             <div className="form-section">
-
-              <h3>
-                Personal & Employment
-              </h3>
+              <h3>About You & Your Job</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    Age
-                  </label>
-
+                  <label>Your Age</label>
                   <input
                     type="number"
                     name="age"
@@ -295,78 +214,33 @@ function CustomerDashboard() {
                     onChange={handleChange}
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Sex
-                  </label>
-
-                  <select
-                    name="sex"
-                    value={formData.sex}
-                    onChange={handleChange}
-                  >
-
-                    <option value="male">
-                      Male
-                    </option>
-
-                    <option value="female">
-                      Female
-                    </option>
-
+                  <label>Gender</label>
+                  <select name="sex" value={formData.sex} onChange={handleChange}>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
                   </select>
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Employment Type
-                  </label>
-
+                  <label>How Do You Earn?</label>
                   <select
                     name="employment_type"
                     value={formData.employment_type}
                     onChange={handleChange}
                   >
-
-                    <option value="salaried">
-                      Salaried
-                    </option>
-
-                    <option value="business">
-                      Business
-                    </option>
-
-                    <option value="self_employed">
-                      Self Employed
-                    </option>
-
-                    <option value="contract">
-                      Contract
-                    </option>
-
-                    <option value="unemployed">
-                      Unemployed
-                    </option>
-
+                    <option value="salaried">Salaried (fixed monthly job)</option>
+                    <option value="business">Run a Business</option>
+                    <option value="self_employed">Self Employed / Freelance</option>
+                    <option value="contract">Contract Worker</option>
+                    <option value="unemployed">Not Currently Working</option>
                   </select>
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Employment Years
-                  </label>
-
+                  <label>Years at Current Job</label>
                   <input
                     type="number"
                     name="employment_years"
@@ -374,50 +248,38 @@ function CustomerDashboard() {
                     min="0"
                     value={formData.employment_years}
                     onChange={handleChange}
+                    placeholder="e.g. 2.5"
                     required
                   />
-
+                  <small className="field-hint">
+                    How long you've worked at your current job or business.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Monthly Income (₹)
-                  </label>
-
+                  <label>Monthly Income (₹)</label>
                   <input
                     type="number"
                     name="monthly_income"
                     min="0"
                     value={formData.monthly_income}
                     onChange={handleChange}
+                    placeholder="e.g. 45000"
                     required
                   />
-
+                  <small className="field-hint">
+                    Your take-home pay each month, before EMIs are deducted.
+                  </small>
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* CREDIT HISTORY */}
-
             <div className="form-section">
-
-              <h3>
-                Credit History
-              </h3>
+              <h3>Your Credit History</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    CIBIL Score
-                  </label>
-
+                  <label>CIBIL Score</label>
                   <input
                     type="number"
                     name="cibil_score"
@@ -425,585 +287,354 @@ function CustomerDashboard() {
                     max="900"
                     value={formData.cibil_score}
                     onChange={handleChange}
+                    placeholder="e.g. 720"
                     required
                   />
-
+                  <small className="field-hint">
+                    Your credit score, usually between 300–900. Don't know
+                    it? Check for free on your bank's app, or apps like
+                    CRED, PhonePe, or Paytm.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Past Loans
-                  </label>
-
+                  <label>Loans You've Ever Taken</label>
                   <input
                     type="number"
                     name="past_loans"
                     min="0"
                     value={formData.past_loans}
                     onChange={handleChange}
+                    placeholder="e.g. 2"
                     required
                   />
-
+                  <small className="field-hint">
+                    Total loans in your life so far, including ones you've
+                    fully paid off (car loan, personal loan, etc.).
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Existing Loans
-                  </label>
-
+                  <label>Loans You're Still Paying</label>
                   <input
                     type="number"
                     name="existing_loans"
                     min="0"
                     value={formData.existing_loans}
                     onChange={handleChange}
+                    placeholder="e.g. 1"
                     required
                   />
-
+                  <small className="field-hint">
+                    Loans you're currently repaying right now.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    On-Time Payments
-                  </label>
-
+                  <label>Payments Made On Time</label>
                   <input
                     type="number"
                     name="on_time_payments"
                     min="0"
                     value={formData.on_time_payments}
                     onChange={handleChange}
+                    placeholder="e.g. 24"
                     required
                   />
-
+                  <small className="field-hint">
+                    Roughly how many loan/EMI payments you've paid on or
+                    before the due date.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Late Payments
-                  </label>
-
+                  <label>Payments Made Late</label>
                   <input
                     type="number"
                     name="late_payments"
                     min="0"
                     value={formData.late_payments}
                     onChange={handleChange}
+                    placeholder="e.g. 0"
                     required
                   />
-
+                  <small className="field-hint">
+                    Roughly how many payments you made after the due date.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Defaults
-                  </label>
-
+                  <label>Loans You Couldn't Repay</label>
                   <input
                     type="number"
                     name="defaults"
                     min="0"
                     value={formData.defaults}
                     onChange={handleChange}
+                    placeholder="e.g. 0"
                     required
                   />
-
+                  <small className="field-hint">
+                    Loans you were unable to pay back at all. Enter 0 if
+                    none.
+                  </small>
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* FINANCIAL HEALTH */}
-
             <div className="form-section">
-
-              <h3>
-                Financial Health
-              </h3>
+              <h3>Your Money & Existing Bills</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    Existing EMI (₹)
-                  </label>
-
+                  <label>Monthly EMI You Pay Now (₹)</label>
                   <input
                     type="number"
                     name="existing_emi"
                     min="0"
                     value={formData.existing_emi}
                     onChange={handleChange}
+                    placeholder="e.g. 5000"
                     required
                   />
-
+                  <small className="field-hint">
+                    Add up all your current monthly loan/EMI payments.
+                    Enter 0 if you have none.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Credit Utilization
-                  </label>
-
+                  <label>Credit Card Usage (%)</label>
                   <input
                     type="number"
                     name="credit_utilization"
                     min="0"
-                    max="1"
-                    step="0.01"
+                    max="100"
+                    step="1"
                     value={formData.credit_utilization}
                     onChange={handleChange}
-                    placeholder="0.30"
+                    placeholder="e.g. 30"
                     required
                   />
-
+                  <small className="field-hint">
+                    Of your total credit card limit, what % are you
+                    currently using? E.g. if your limit is ₹1,00,000 and
+                    you owe ₹30,000, enter 30. No credit card? Enter 0.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    DTI Ratio
-                  </label>
-
-                  <input
-                    type="number"
-                    name="dti_ratio"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={formData.dti_ratio}
-                    onChange={handleChange}
-                    placeholder="0.25"
-                    required
-                  />
-
-                </div>
-
-
-                <div className="field">
-
-                  <label>
-                    Bank Balance (₹)
-                  </label>
-
+                  <label>Money in Bank Account (₹)</label>
                   <input
                     type="number"
                     name="bank_balance"
                     min="0"
                     value={formData.bank_balance}
                     onChange={handleChange}
+                    placeholder="e.g. 20000"
                     required
                   />
-
+                  <small className="field-hint">
+                    A rough estimate of what's in your bank account right
+                    now is fine.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Savings Balance (₹)
-                  </label>
-
+                  <label>Savings / Fixed Deposits (₹)</label>
                   <input
                     type="number"
                     name="savings_balance"
                     min="0"
                     value={formData.savings_balance}
                     onChange={handleChange}
+                    placeholder="e.g. 50000"
                     required
                   />
-
+                  <small className="field-hint">
+                    Total money set aside in savings accounts or fixed
+                    deposits.
+                  </small>
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* NEW LOAN */}
-
             <div className="form-section">
-
-              <h3>
-                New Loan Details
-              </h3>
+              <h3>The Loan You Want</h3>
 
               <div className="form-grid three">
-
                 <div className="field">
-
-                  <label>
-                    New Loan Amount (₹)
-                  </label>
-
+                  <label>How Much Do You Want to Borrow? (₹)</label>
                   <input
                     type="number"
                     name="new_loan_amount"
                     min="0"
                     value={formData.new_loan_amount}
                     onChange={handleChange}
+                    placeholder="e.g. 200000"
                     required
                   />
-
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Loan Duration (Months)
-                  </label>
-
+                  <label>Repay Over How Many Months?</label>
                   <input
                     type="number"
                     name="loan_duration_months"
                     min="1"
                     value={formData.loan_duration_months}
                     onChange={handleChange}
+                    placeholder="e.g. 24"
                     required
                   />
-
+                  <small className="field-hint">
+                    E.g. enter 24 for a 2-year loan.
+                  </small>
                 </div>
 
-
                 <div className="field">
-
-                  <label>
-                    Loan Purpose
-                  </label>
-
+                  <label>What's It For?</label>
                   <select
                     name="loan_purpose"
                     value={formData.loan_purpose}
                     onChange={handleChange}
                   >
-
-                    <option value="home">
-                      Home
-                    </option>
-
-                    <option value="car">
-                      Car
-                    </option>
-
-                    <option value="education">
-                      Education
-                    </option>
-
-                    <option value="business">
-                      Business
-                    </option>
-
-                    <option value="personal">
-                      Personal
-                    </option>
-
-                    <option value="medical">
-                      Medical
-                    </option>
-
+                    <option value="home">Home</option>
+                    <option value="car">Car</option>
+                    <option value="education">Education</option>
+                    <option value="business">Business</option>
+                    <option value="personal">Personal</option>
+                    <option value="medical">Medical</option>
                   </select>
-
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* SUBMIT */}
-
-            <button
-              type="submit"
-              className="assess-button"
-              disabled={loading}
-            >
-
-              {loading
-                ? "Analyzing Your Profile..."
-                : "Check My Credit Risk →"}
-
+            <button type="submit" className="assess-button" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="spinner"></span>
+                  Analyzing Your Profile...
+                </>
+              ) : (
+                <>Check My Credit Risk →</>
+              )}
             </button>
-
           </form>
-
         </section>
 
-
-        {/* ERROR */}
-
         {error && (
-
           <div className="error">
-
-            <strong>
-              Assessment Error
-            </strong>
-
-            <span>
-              {error}
-            </span>
-
+            <strong>Assessment Error</strong>
+            <span>{error}</span>
           </div>
-
         )}
-
-
-        {/* =================================================
-            RESULT
-        ================================================= */}
 
         {result && (
-
-          <section
-            id="customer-result"
-            className="customer-result"
-          >
-
-
-            {/* RESULT HEADER */}
-
+          <section id="customer-result" className="customer-result">
             <div className="customer-result-header">
-
-              <span className="eyebrow">
-                YOUR ASSESSMENT
-              </span>
-
-              <h2>
-                Credit Risk Result
-              </h2>
-
+              <span className="eyebrow">YOUR ASSESSMENT</span>
+              <h2>Credit Risk Result</h2>
             </div>
-
-
-            {/* SCORE CARD */}
 
             <div className="customer-score-card">
-
               <div>
-
-                <span>
-                  Credit Risk Score
-                </span>
-
+                <span>Credit Risk Score</span>
                 <div className="customer-score">
-
                   {result.credit_score}
-
-                  <small>
-                    /100
-                  </small>
-
+                  <small>/100</small>
                 </div>
-
               </div>
-
 
               <div>
-
-                <h3>
-                  {result.decision}
-                </h3>
-
-                <p>
-                  {result.risk_label}
-                </p>
-
+                <h3>{result.decision}</h3>
+                <p>{result.risk_label}</p>
               </div>
-
             </div>
 
-
-            {/* RESULT GRID */}
+            {result.ai_summary && (
+              <div className="dashboard-card ai-summary-card">
+                <span className="ai-tag">AI SUMMARY</span>
+                <p>{result.ai_summary}</p>
+              </div>
+            )}
 
             <div className="customer-result-grid">
-
-
-              {/* RISK PROBABILITY */}
-
               <div className="dashboard-card">
-
-                <h3>
-                  Risk Probability
-                </h3>
-
+                <h3>Risk Probability</h3>
                 <p>
-                  Good Credit:{" "}
-                  <strong>
-                    {result.good_credit_probability}%
-                  </strong>
+                  Good Credit: <strong>{result.good_credit_probability}%</strong>
                 </p>
-
                 <p>
-                  Poor Credit:{" "}
-                  <strong>
-                    {result.poor_credit_probability}%
-                  </strong>
+                  Poor Credit: <strong>{result.poor_credit_probability}%</strong>
                 </p>
-
               </div>
 
-
-              {/* EXPLANATION */}
-
               <div className="dashboard-card">
-
-                <h3>
-                  Why did I get this result?
-                </h3>
+                <h3>Why did I get this result?</h3>
 
                 <div className="customer-explanations">
+                  {result.explanation?.map((item, index) => {
+                    const reducesRisk = item.direction === "reduces_risk";
 
-                  {result.explanation?.map(
-                    (item, index) => {
+                    const displayName =
+                      featureNames[item.feature] ||
+                      item.feature
+                        .replaceAll("_", " ")
+                        .replace(/\b\w/g, (char) => char.toUpperCase());
 
-                      const reducesRisk =
-                        item.direction ===
-                        "reduces_risk";
-
-                      const displayName =
-                        featureNames[item.feature] ||
-                        item.feature
-                          .replaceAll("_", " ")
-                          .replace(
-                            /\b\w/g,
-                            (char) =>
-                              char.toUpperCase()
-                          );
-
-                      return (
-
-                        <div
-                          key={index}
-                          className={`customer-explanation ${
-                            reducesRisk
-                              ? "positive-factor"
-                              : "risk-factor"
-                          }`}
-                        >
-
-                          <div>
-
-                            <strong>
-                              {displayName}
-                            </strong>
-
-                            <p>
-                                {item.reason}
-                            </p>
-
-                          </div>
-
-                          <span>
-                            {reducesRisk
-                              ? "Positive"
-                              : "Risk Factor"}
-                          </span>
-
+                    return (
+                      <div
+                        key={index}
+                        className={`customer-explanation ${
+                          reducesRisk ? "positive-factor" : "risk-factor"
+                        }`}
+                      >
+                        <div>
+                          <strong>{displayName}</strong>
+                          <p>{item.reason}</p>
                         </div>
 
-                      );
-
-                    }
-                  )}
-
+                        <span>{reducesRisk ? "Positive" : "Risk Factor"}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-
               </div>
-
             </div>
-
-
-            {/* PERSONALIZED ADVICE */}
 
             <div className="dashboard-card advice-card">
+              <h3>How can I improve my credit profile?</h3>
 
-              <h3>
-                How can I improve my credit profile?
-              </h3>
-
-              {result.risk_label ===
-              "HIGHER RISK" ? (
-
+              {result.risk_label === "HIGHER RISK" ? (
                 <div className="advice-list">
-
-                  {result.improvement_advice?.map(
-                    (advice, index) => (
-
-                      <div key={index}>
-
-                        <strong>
-                          {index + 1}.
-                          {" "}
-                          Improvement Recommendation
-                        </strong>
-
-                        <p>
-                          {advice}
-                        </p>
-
-                      </div>
-
-                    )
-                  )}
-
+                  {result.improvement_advice?.map((advice, index) => (
+                    <div key={index}>
+                      <strong>{index + 1}. Improvement Recommendation</strong>
+                      <p>{advice}</p>
+                    </div>
+                  ))}
                 </div>
-
               ) : (
-
                 <p>
-
-                  Your current profile shows a lower
-                  level of credit risk. Continue making
-                  payments on time and maintaining
-                  healthy financial habits.
-
+                  Your current profile shows a lower level of credit risk.
+                  Continue making payments on time and maintaining healthy
+                  financial habits.
                 </p>
-
               )}
-
             </div>
-
-
-            {/* DISCLAIMER */}
 
             <div className="customer-disclaimer">
-
-              <strong>
-                Important
-              </strong>
-
+              <strong>Important</strong>
               <p>
-
-                This is an AI-based credit risk
-                assessment and does not represent a
-                final loan approval or rejection.
-
+                This is an AI-based credit risk assessment and does not
+                represent a final loan approval or rejection.
+                {profile?.name ? ` Assessment for ${profile.name}.` : ""}
               </p>
-
             </div>
-
           </section>
-
         )}
-
       </main>
-
     </div>
   );
 }

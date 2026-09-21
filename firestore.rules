@@ -1,0 +1,135 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownerProfile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function isSuperAdmin(uid) {
+      return signedIn() && ownerProfile(uid).isSuperAdmin == true;
+    }
+
+    function isEmployee(uid) {
+      return signedIn() && ownerProfile(uid).role == 'employee';
+    }
+
+    function isCustomer(uid) {
+      return signedIn() && ownerProfile(uid).role == 'customer';
+    }
+
+    function isAdminUser(uid) {
+      return isEmployee(uid) &&
+        (ownerProfile(uid).isAdmin == true || ownerProfile(uid).isSuperAdmin == true);
+    }
+
+    // ============================================================
+    // USERS
+    // ============================================================
+    //
+    // - Anyone signed in can read the users collection (needed for
+    //   the Admin Panel roster and for role lookups elsewhere).
+    // - A user may only create their OWN profile doc, and may not
+    //   self-assign isAdmin or isSuperAdmin. isSuperAdmin can only
+    //   ever be true for the one hard-coded super-admin email — the
+    //   client can't spoof this because it's checked against the
+    //   verified auth token, not client-supplied data.
+    // - A user may update their own name/phone only.
+    // - Only the super admin may flip isAdmin on an employee doc
+    //   that is not itself the super admin's own doc.
+    // - Only the super admin may delete a user's profile (removing
+    //   their access — see note below), and never their own.
+    //
+    // ============================================================
+
+    match /users/{uid} {
+
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ['customer', 'employee']
+        && request.resource.data.isAdmin == false
+        && request.resource.data.isSuperAdmin ==
+             (request.auth.token.email == 'manidharc@gmail.com');
+
+      allow update: if signedIn() && (
+        (
+          request.auth.uid == uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'phone'])
+        ) ||
+        (
+          isSuperAdmin(request.auth.uid) &&
+          resource.data.isSuperAdmin == false &&
+          resource.data.role == 'employee' &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isAdmin'])
+        )
+      );
+
+      // Deleting the Firestore profile doesn't delete the underlying
+      // Firebase Auth account (that requires the Admin SDK, server-side
+      // only) — but every login path in this app treats "no profile" as
+      // an invalid account and signs the user straight back out, so this
+      // fully revokes their access to the app.
+      allow delete: if isSuperAdmin(request.auth.uid) && resource.data.isSuperAdmin == false;
+    }
+
+    // ============================================================
+    // CUSTOMERS
+    // ============================================================
+    //
+    // Ad-hoc customer records created only by employees running the
+    // employee assessment flow (not tied to a real login account).
+    //
+    // ============================================================
+
+    match /customers/{customerId} {
+      allow read, create: if isEmployee(request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // ASSESSMENTS
+    // ============================================================
+    //
+    // - Employees/admins can read and create any assessment (the
+    //   shared history, and records for walk-in or registered
+    //   customers alike).
+    // - A customer account may create an assessment ONLY for
+    //   themselves (customerUid must equal their own uid, and
+    //   source must be "self") — this is their own self-assessment
+    //   report, saved to their profile.
+    // - A customer account may read only assessments where they are
+    //   the customer (customerUid == their uid) — covers both their
+    //   own self-assessments and ones an employee ran on their
+    //   behalf while they were logged in as a known account.
+    // - Only admins/super admins may delete a record. No updates ever
+    //   — a record is either the full immutable original, or gone.
+    //
+    // ============================================================
+
+    match /assessments/{assessmentId} {
+      allow read: if isEmployee(request.auth.uid) ||
+        (signedIn() && resource.data.customerUid == request.auth.uid);
+
+      allow create: if isEmployee(request.auth.uid) ||
+        (
+          isCustomer(request.auth.uid) &&
+          request.resource.data.customerUid == request.auth.uid &&
+          request.resource.data.source == 'self'
+        );
+
+      allow delete: if isAdminUser(request.auth.uid);
+
+      allow update: if false;
+    }
+  }
+}
