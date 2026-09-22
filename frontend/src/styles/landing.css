@@ -582,9 +582,33 @@
   gap: var(--space-4);
 }
 
+.landing-footer-inner .brand {
+  flex-shrink: 0;
+}
+
+.landing-footer-inner .brand .logo {
+  white-space: nowrap;
+}
+
 .landing-footer-links {
   display: flex;
   gap: var(--space-5);
+}
+
+/* At narrow widths, wrapping the three footer blocks onto shared
+   rows (the flex-wrap above) squeezed the brand block until its
+   wordmark itself wrapped, colliding with the portal links sharing
+   that line. Stacking them into one clean column avoids that. */
+@media (max-width: 640px) {
+  .landing-footer-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .landing-footer-links {
+    gap: var(--space-4);
+  }
 }
 
 .landing-footer-links a {
