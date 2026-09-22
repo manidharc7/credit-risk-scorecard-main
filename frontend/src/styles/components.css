@@ -229,6 +229,7 @@ input[type="email"],
 input[type="tel"],
 input[type="password"],
 input[type="number"],
+input[type="search"],
 select {
   width: 100%;
   padding: 12px 14px;
@@ -260,9 +261,45 @@ select:focus {
   input[type="tel"],
   input[type="password"],
   input[type="number"],
+  input[type="search"],
   select {
     font-size: 16px;
     min-height: 46px;
+  }
+}
+
+/* Reused wherever a list needs a client-side filter box (Admin Panel
+   users/history, Employee History). */
+.search-bar {
+  position: relative;
+  max-width: 320px;
+  margin-bottom: var(--space-4);
+}
+
+.search-bar input[type="search"] {
+  padding-left: 38px;
+}
+
+.search-bar svg {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Clears the native "x" clear button so it doesn't collide with our
+   own layout across browsers that render it differently. */
+.search-bar input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+@media (max-width: 640px) {
+  .search-bar {
+    max-width: 100%;
   }
 }
 

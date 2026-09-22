@@ -973,6 +973,12 @@
   transition: box-shadow var(--duration-fast), transform var(--duration-fast);
 }
 
+/* Admin History uses a shorter row (no probability columns) plus a
+   trailing action column for the Remove button. */
+.history-row-admin {
+  grid-template-columns: 2fr 1fr 1fr 1.2fr auto;
+}
+
 .history-row:hover {
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);

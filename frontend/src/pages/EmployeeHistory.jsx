@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
 import { Sidebar } from "../components/Sidebar";
 import { AssessmentDetailModal } from "../components/AssessmentDetailModal";
+import { SearchBar } from "../components/SearchBar";
 import { db } from "../firebase/config";
 
 function formatDate(timestamp) {
@@ -16,6 +17,7 @@ function EmployeeHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -39,6 +41,17 @@ function EmployeeHistory() {
 
     load();
   }, []);
+
+  const filteredAssessments = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return assessments;
+
+    return assessments.filter((a) =>
+      [a.customerName, a.customerEmail, a.decision, a.riskLabel]
+        .filter(Boolean)
+        .some((field) => field.toLowerCase().includes(term))
+    );
+  }, [assessments, search]);
 
   return (
     <div className="app">
@@ -69,6 +82,12 @@ function EmployeeHistory() {
             <span className="history-count">{assessments.length} Records</span>
           </div>
 
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by customer name or email..."
+          />
+
           {loading && <p>Loading customer assessments...</p>}
 
           {error && (
@@ -82,9 +101,13 @@ function EmployeeHistory() {
             <div className="empty-state">No customer assessments found yet.</div>
           )}
 
-          {!loading && !error && assessments.length > 0 && (
+          {!loading && !error && assessments.length > 0 && filteredAssessments.length === 0 && (
+            <div className="empty-state">No records match "{search}".</div>
+          )}
+
+          {!loading && !error && filteredAssessments.length > 0 && (
             <div className="history-list stagger">
-              {assessments.map((item) => (
+              {filteredAssessments.map((item) => (
                 <div
                   key={item.id}
                   className="history-row history-row-clickable"
