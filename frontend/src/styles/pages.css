@@ -31,9 +31,7 @@
 
 .auth-card .brand-icon {
   margin: 0 auto var(--space-4);
-  width: 52px;
   height: 52px;
-  font-size: 18px;
 }
 
 .auth-card h1 {

@@ -55,9 +55,7 @@ function Welcome() {
     <div className="landing-page">
       <header className="landing-nav">
         <div className="brand">
-          <div className="brand-icon">
-            <img src={logo} alt="CreditGuard AI" />
-          </div>
+          <img className="brand-icon" src={logo} alt="CreditGuard AI" />
           <div className="logo">
             CreditGuard <span>AI</span>
           </div>
@@ -295,9 +293,7 @@ function Welcome() {
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <div className="brand">
-            <div className="brand-icon">
-            <img src={logo} alt="CreditGuard AI" />
-          </div>
+            <img className="brand-icon" src={logo} alt="CreditGuard AI" />
             <div className="logo">
               CreditGuard <span>AI</span>
             </div>

@@ -69,9 +69,7 @@ function EmployeeLogin() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand-icon">
-          <img src={logo} alt="CreditGuard AI" />
-        </div>
+        <img className="brand-icon" src={logo} alt="CreditGuard AI" />
 
         <h1>
           CreditGuard <span>AI</span>

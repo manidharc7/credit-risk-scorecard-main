@@ -583,26 +583,21 @@ select {
   gap: var(--space-3);
 }
 
+/* The logo art is a plain black silhouette on a transparent PNG — no
+   badge, no background box. `filter: invert(1)` flips it to white for
+   the (default) dark theme; the light-theme override below removes
+   the filter so it stays black, matching whichever theme is active. */
 .brand-icon {
-  width: 36px;
   height: 36px;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--text-on-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-family: var(--font-serif);
-  font-size: 14px;
-  letter-spacing: 0.02em;
+  width: auto;
   flex-shrink: 0;
+  object-fit: contain;
+  filter: invert(1);
+  transition: filter var(--duration-base) var(--ease-out);
 }
 
-.brand-icon img {
-  width: 68%;
-  height: 68%;
-  object-fit: contain;
+:root[data-theme="light"] .brand-icon {
+  filter: none;
 }
 
 .logo {
@@ -913,9 +908,7 @@ select {
   }
 
   .mobile-topbar-brand .brand-icon {
-    width: 30px;
-    height: 30px;
-    font-size: 12px;
+    height: 28px;
   }
 
   .mobile-topbar-brand .logo {

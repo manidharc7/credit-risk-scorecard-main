@@ -105,9 +105,7 @@ export function Sidebar({ portal }) {
     <>
       <header className="mobile-topbar">
         <Link to="/" className="mobile-topbar-brand">
-          <div className="brand-icon">
-            <img src={logo} alt="CreditGuard AI" />
-          </div>
+          <img className="brand-icon" src={logo} alt="CreditGuard AI" />
           <div className="logo">
             CreditGuard <span>AI</span>
           </div>
@@ -128,9 +126,7 @@ export function Sidebar({ portal }) {
 
       <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
         <Link to="/" className="sidebar-brand">
-          <div className="brand-icon">
-            <img src={logo} alt="CreditGuard AI" />
-          </div>
+          <img className="brand-icon" src={logo} alt="CreditGuard AI" />
           <div className="logo">
             CreditGuard <span>AI</span>
           </div>
