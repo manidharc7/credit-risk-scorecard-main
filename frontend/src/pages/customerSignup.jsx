@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { signUp } from "../firebase/auth";
 import { useToast } from "../context/useToast";
+import logo from "../assets/logo.png";
 
 function CustomerSignup() {
   const navigate = useNavigate();
@@ -53,7 +54,9 @@ function CustomerSignup() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand-icon">CG</div>
+        <div className="brand-icon">
+          <img src={logo} alt="CreditGuard AI" />
+        </div>
 
         <h1>
           CreditGuard <span>AI</span>

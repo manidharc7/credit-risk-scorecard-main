@@ -5,6 +5,7 @@ import { logIn, resetPassword } from "../firebase/auth";
 import { useToast } from "../context/useToast";
 import { SocialAuthButtons } from "../components/SocialAuthButtons";
 import { CompleteProfileForm } from "../components/CompleteProfileForm";
+import logo from "../assets/logo.png";
 
 function CustomerLogin() {
   const navigate = useNavigate();
@@ -68,7 +69,9 @@ function CustomerLogin() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand-icon">CG</div>
+        <div className="brand-icon">
+          <img src={logo} alt="CreditGuard AI" />
+        </div>
 
         <h1>
           CreditGuard <span>AI</span>

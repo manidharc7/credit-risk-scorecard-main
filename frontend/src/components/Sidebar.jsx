@@ -4,6 +4,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { logOut } from "../firebase/auth";
 import { ThemeToggle } from "./ThemeToggle";
+import logo from "../assets/logo.png";
 
 const COLLAPSE_STORAGE_KEY = "creditguard-sidebar-collapsed";
 
@@ -104,7 +105,9 @@ export function Sidebar({ portal }) {
     <>
       <header className="mobile-topbar">
         <Link to="/" className="mobile-topbar-brand">
-          <div className="brand-icon">CG</div>
+          <div className="brand-icon">
+            <img src={logo} alt="CreditGuard AI" />
+          </div>
           <div className="logo">
             CreditGuard <span>AI</span>
           </div>
@@ -125,7 +128,9 @@ export function Sidebar({ portal }) {
 
       <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
         <Link to="/" className="sidebar-brand">
-          <div className="brand-icon">CG</div>
+          <div className="brand-icon">
+            <img src={logo} alt="CreditGuard AI" />
+          </div>
           <div className="logo">
             CreditGuard <span>AI</span>
           </div>

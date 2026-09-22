@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
 import { ThemeToggle } from "../components/ThemeToggle";
+import logo from "../assets/logo.png";
 
 const FEATURES = [
   {
@@ -54,7 +55,9 @@ function Welcome() {
     <div className="landing-page">
       <header className="landing-nav">
         <div className="brand">
-          <div className="brand-icon">CG</div>
+          <div className="brand-icon">
+            <img src={logo} alt="CreditGuard AI" />
+          </div>
           <div className="logo">
             CreditGuard <span>AI</span>
           </div>
@@ -292,7 +295,9 @@ function Welcome() {
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <div className="brand">
-            <div className="brand-icon">CG</div>
+            <div className="brand-icon">
+            <img src={logo} alt="CreditGuard AI" />
+          </div>
             <div className="logo">
               CreditGuard <span>AI</span>
             </div>

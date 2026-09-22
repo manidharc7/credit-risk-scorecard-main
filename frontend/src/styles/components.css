@@ -599,6 +599,12 @@ select {
   flex-shrink: 0;
 }
 
+.brand-icon img {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
+}
+
 .logo {
   font-weight: 800;
   font-size: 15px;
