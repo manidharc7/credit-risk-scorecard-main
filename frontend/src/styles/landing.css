@@ -18,6 +18,14 @@
   padding: 16px var(--space-6);
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-subtle);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* Scrolling down hides the bar out of the way of the content;
+   scrolling back up (or reaching the top) brings it back — see the
+   scroll handler in welcome.jsx. */
+.landing-nav-hidden {
+  transform: translateY(-100%);
 }
 
 .landing-nav-links {
@@ -65,7 +73,23 @@
     padding: 12px var(--space-4);
   }
 
+  /* Row 1: brand grows to fill the line, pushing the theme toggle to
+     the far right of that same row (it sits after the action buttons
+     in the DOM — reasonable at desktop width — so `order` pulls it
+     back up next to the brand here). Row 2: the login/dashboard
+     button(s), forced onto their own full-width line below. */
+  .brand {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .landing-nav > .theme-toggle {
+    order: 1;
+  }
+
   .landing-nav-actions {
+    order: 2;
+    flex-basis: 100%;
     width: 100%;
     justify-content: center;
   }

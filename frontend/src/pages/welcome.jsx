@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
@@ -51,9 +52,31 @@ function Welcome() {
   const dashboardPath =
     profile?.role === "employee" ? "/employee-dashboard" : "/customer-dashboard";
 
+  const [navHidden, setNavHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+
+      if (currentY <= 0) {
+        setNavHidden(false);
+      } else if (currentY > lastScrollY.current) {
+        setNavHidden(true); // scrolling down — get out of the way
+      } else {
+        setNavHidden(false); // scrolling up — bring it back
+      }
+
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="landing-page">
-      <header className="landing-nav">
+      <header className={`landing-nav ${navHidden ? "landing-nav-hidden" : ""}`}>
         <div className="brand">
           <img className="brand-icon" src={logo} alt="CreditGuard AI" />
           <div className="logo">
@@ -67,8 +90,6 @@ function Welcome() {
         </nav>
 
         <div className="landing-nav-actions">
-          <ThemeToggle />
-
           {isAuthenticated ? (
             <button
               type="button"
@@ -96,6 +117,8 @@ function Welcome() {
             </>
           )}
         </div>
+
+        <ThemeToggle />
       </header>
 
       <section className="landing-hero">
