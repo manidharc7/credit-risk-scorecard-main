@@ -1060,6 +1060,26 @@ select {
   animation: scale-in var(--duration-base) var(--ease-out);
 }
 
+.modal-panel.confirm-dialog {
+  max-width: 420px;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 480px) {
+  .confirm-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-dialog-actions button {
+    width: 100%;
+  }
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

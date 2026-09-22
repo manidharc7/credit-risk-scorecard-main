@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
-import { collection, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+} from "firebase/firestore";
 
 import { Sidebar } from "../components/Sidebar";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/useAuth";
 import { useToast } from "../context/useToast";
@@ -14,6 +23,8 @@ function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingUid, setPendingUid] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refreshUsers = async () => {
     const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
@@ -61,6 +72,24 @@ function AdminPanel() {
       toast.error(err.message);
     } finally {
       setPendingUid(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+
+    try {
+      await deleteDoc(doc(db, "users", deleteTarget.uid));
+
+      setUsers((current) => current.filter((u) => u.uid !== deleteTarget.uid));
+      toast.success(`${deleteTarget.name}'s account has been removed.`);
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -152,6 +181,16 @@ function AdminPanel() {
                           : "Make Admin"}
                       </button>
                     )}
+
+                    {isSuperAdmin && !u.isSuperAdmin && (
+                      <button
+                        type="button"
+                        className="demote-button"
+                        onClick={() => setDeleteTarget(u)}
+                      >
+                        Remove User
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -159,6 +198,18 @@ function AdminPanel() {
           )}
         </section>
       </main>
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Remove this user?"
+          message={`This permanently deletes ${deleteTarget.name}'s (${deleteTarget.email}) account from CreditGuard AI. They will be signed out and won't be able to log back in. This can't be undone.`}
+          confirmLabel="Remove User"
+          danger
+          loading={deleting}
+          onConfirm={handleDeleteUser}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }
