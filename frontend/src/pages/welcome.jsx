@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 const FEATURES = [
   {
@@ -65,6 +66,8 @@ function Welcome() {
         </nav>
 
         <div className="landing-nav-actions">
+          <ThemeToggle />
+
           {isAuthenticated ? (
             <button
               type="button"

@@ -10,6 +10,10 @@ body {
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--bg-page);
   color: var(--text-primary);
@@ -18,8 +22,21 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
   transition: background-color var(--duration-base) var(--ease-out),
     color var(--duration-base) var(--ease-out);
+}
+
+/* Safety net: nothing on the page should ever force horizontal scroll,
+   regardless of viewport width. */
+#root {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+img,
+svg {
+  max-width: 100%;
 }
 
 h1,

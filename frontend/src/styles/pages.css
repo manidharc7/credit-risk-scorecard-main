@@ -243,6 +243,31 @@
   padding: 0 var(--space-5) var(--space-8);
 }
 
+/* Below 767px the Sidebar switches to a fixed bottom nav bar (see
+   components.css) and is taken out of normal flow, so `.app` /
+   `.customer-page` no longer need to be a flex row — and the content
+   needs bottom padding so it never sits underneath the fixed bar. */
+@media (max-width: 767px) {
+  .app,
+  .customer-page {
+    display: block;
+  }
+
+  .container,
+  .customer-container {
+    max-width: 100%;
+    padding: 0 var(--space-4) calc(84px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .container,
+  .customer-container {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+}
+
 .customer-nav {
   display: flex;
   align-items: center;
@@ -353,6 +378,12 @@
 @media (max-width: 900px) {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -918,6 +949,17 @@
   }
 }
 
+@media (max-width: 640px) {
+  .history-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .history-row > div {
+    width: 100%;
+  }
+}
+
 .history-row strong {
   display: block;
   font-size: 14px;
@@ -960,6 +1002,13 @@
   }
 }
 
+@media (max-width: 640px) {
+  .admin-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
 .admin-row strong {
   display: block;
   font-size: 14px;
@@ -974,4 +1023,112 @@
   display: flex;
   gap: var(--space-2);
   justify-self: end;
+}
+
+@media (max-width: 640px) {
+  .admin-actions {
+    justify-self: stretch;
+  }
+
+  .admin-actions .promote-button,
+  .admin-actions .demote-button {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* ============================================================
+   MOBILE REFINEMENTS (phones, ~360–767px)
+   Everything above already collapses grids at various breakpoints;
+   this section closes the remaining gaps: header rows that pack a
+   heading next to a badge/count without wrapping, oversized padding
+   that leaves too little room for content, and text alignment choices
+   (e.g. right-aligned score labels) that only make sense in a wide
+   two-column layout.
+============================================================ */
+
+@media (max-width: 640px) {
+  .history-toolbar,
+  .verification-heading,
+  .dashboard-card-header,
+  .result-header,
+  .customer-result-header {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .verification-count,
+  .history-count {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-page {
+    padding: var(--space-3);
+  }
+
+  .auth-card {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .card {
+    padding: var(--space-4);
+  }
+
+  .dashboard-card {
+    padding: var(--space-4);
+  }
+
+  .hero,
+  .customer-hero {
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-4);
+  }
+
+  .hero h1,
+  .customer-hero h1 {
+    font-size: 26px;
+  }
+
+  .hero-badge {
+    width: 100%;
+  }
+
+  .customer-score-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-5);
+  }
+
+  .customer-score-card h3,
+  .customer-score-card p {
+    text-align: left;
+  }
+
+  .profile-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-header {
+    padding: var(--space-5) var(--space-4) var(--space-3);
+  }
+
+  .modal-body {
+    padding: var(--space-4);
+  }
+
+  .modal-header h2 {
+    font-size: 19px;
+  }
+
+  .modal-meta-grid {
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 380px) {
+  .modal-meta-grid {
+    grid-template-columns: 1fr;
+  }
 }

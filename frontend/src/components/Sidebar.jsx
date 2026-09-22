@@ -2,6 +2,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
 import { logOut } from "../firebase/auth";
+import { ThemeToggle } from "./ThemeToggle";
 
 function GaugeIcon() {
   return (
@@ -116,6 +117,7 @@ export function Sidebar({ portal }) {
       </nav>
 
       <div className="sidebar-footer">
+        <ThemeToggle className="sidebar-theme-toggle" />
         <button type="button" className="sidebar-logout" onClick={handleLogout}>
           <LogoutIcon />
           <span>Logout</span>

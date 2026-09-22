@@ -107,6 +107,40 @@
   border-color: var(--border-strong);
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.sidebar-theme-toggle {
+  width: 100%;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
 .promote-button {
   padding: 8px 14px;
   background: var(--color-success-bg);
@@ -133,6 +167,40 @@
 .demote-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Keep tap targets comfortably above the ~44px accessibility minimum
+   on touch devices, where the desktop paddings above run a bit small. */
+@media (max-width: 767px) {
+  .ghost-button,
+  .logout-button,
+  .promote-button,
+  .demote-button,
+  .inline-link-button,
+  .auth-switch button {
+    min-height: 44px;
+  }
+
+  .modal-close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ghost-button,
+  .logout-button {
+    padding: 12px 18px;
+  }
+
+  .promote-button,
+  .demote-button {
+    padding: 11px 16px;
+  }
+
+  .back-button,
+  .assess-button,
+  .auth-card button[type="submit"] {
+    min-height: 48px;
+  }
 }
 
 /* ============================================================
@@ -181,6 +249,21 @@ select:focus {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: var(--shadow-focus);
+}
+
+/* iOS Safari auto-zooms the page when a focused input's font-size is
+   under 16px — bump it up on touch-width viewports so typing on the
+   forms (login, signup, the assessment forms) doesn't trigger that. */
+@media (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="number"],
+  select {
+    font-size: 16px;
+    min-height: 46px;
+  }
 }
 
 select {
@@ -440,6 +523,12 @@ select {
   opacity: 0.85;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .brand-icon {
   width: 36px;
   height: 36px;
@@ -601,6 +690,110 @@ select {
   }
 }
 
+/* On phones a side rail — even a slim icon-only one — still eats
+   horizontal space that's already scarce, and reads as a desktop
+   pattern bolted onto a small screen. Below 767px the sidebar instead
+   becomes a fixed bottom navigation bar, which is the layout users
+   actually expect on a phone, and gives the main content the full
+   viewport width to work with. */
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1);
+    padding: 6px max(var(--space-2), env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom))
+      max(var(--space-2), env(safe-area-inset-right));
+    border-right: none;
+    border-top: 1px solid var(--border-subtle);
+    z-index: 60;
+    overflow: visible;
+  }
+
+  .sidebar-brand,
+  .sidebar-account {
+    display: none;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+  }
+
+  .sidebar-nav a {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 48px;
+    min-width: 48px;
+    padding: 6px 4px;
+    flex: 1;
+  }
+
+  .sidebar-nav a span {
+    display: block;
+    max-width: 100%;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-nav a svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .sidebar-footer {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    border-top: none;
+    margin: 0;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-theme-toggle {
+    width: 48px;
+    height: auto;
+    min-height: 48px;
+    margin-bottom: 0;
+  }
+
+  .sidebar-logout {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    width: auto;
+    min-height: 48px;
+    min-width: 48px;
+    padding: 6px 8px;
+  }
+
+  .sidebar-logout span {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .sidebar-logout svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
 /* ============================================================
    TOASTS
 ============================================================ */
@@ -609,8 +802,10 @@ select {
   position: fixed;
   top: 20px;
   right: 20px;
+  left: 20px;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 10px;
   z-index: 100;
 }
@@ -618,6 +813,7 @@ select {
 .toast {
   min-width: 260px;
   max-width: 360px;
+  width: 100%;
   padding: 14px 18px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);

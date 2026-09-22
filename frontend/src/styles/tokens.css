@@ -87,3 +87,40 @@
     transparent 1px
   );
 }
+
+/* Light mode — same tokens, swapped for a light surface set */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-accent-100: #e3f9ee;
+  --color-success-bg: #e3f9ee;
+
+  --color-danger-bg: #fdeceA;
+  --color-warning-bg: #fbf1dc;
+
+  --bg-page: #f6f6f7;
+  --bg-surface: #ffffff;
+  --bg-muted: #f0f0f2;
+  --bg-inset: #ebebed;
+  --bg-elevated: #ffffff;
+  --bg-sidebar: #ffffff;
+
+  --text-primary: #131315;
+  --text-secondary: #5b5b62;
+  --text-muted: #86868c;
+  --text-inverse: #ffffff;
+
+  --border-subtle: #e4e4e7;
+  --border-strong: #cfcfd4;
+
+  --shadow-sm: 0 1px 2px rgba(20, 20, 22, 0.06);
+  --shadow-md: 0 10px 28px rgba(20, 20, 22, 0.1);
+  --shadow-lg: 0 24px 56px rgba(20, 20, 22, 0.14);
+  --shadow-focus: 0 0 0 3px rgba(62, 207, 142, 0.28);
+
+  --dot-grid: radial-gradient(
+    circle,
+    rgba(19, 19, 21, 0.08) 1px,
+    transparent 1px
+  );
+}
