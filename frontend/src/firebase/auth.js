@@ -17,6 +17,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -112,6 +113,13 @@ export async function logIn({ email, password, expectedRole }) {
   }
 
   return profile;
+}
+
+// Firestore rules only allow a signed-in user to update their own
+// `name` and `phone` fields — email, username, and role are fixed
+// once the account is created.
+export async function updateOwnProfile(uid, { name, phone }) {
+  await updateDoc(doc(db, "users", uid), { name, phone });
 }
 
 export async function logOut() {

@@ -13,6 +13,7 @@ import EmployeeLogin from "./pages/employeeLogin";
 import EmployeeSignup from "./pages/employeeSignup";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import EmployeeHistory from "./pages/EmployeeHistory";
+import EmployeeProfile from "./pages/EmployeeProfile";
 import AdminPanel from "./pages/AdminPanel";
 
 import CustomerLogin from "./pages/customerLogin";
@@ -52,6 +53,15 @@ function AppRoutes() {
           element={
             <ProtectedRoute role="employee" requireAdmin>
               <AdminPanel />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/employee-profile"
+          element={
+            <ProtectedRoute role="employee">
+              <EmployeeProfile />
             </ProtectedRoute>
           }
         />

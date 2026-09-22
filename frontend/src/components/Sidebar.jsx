@@ -101,6 +101,10 @@ export function Sidebar({ portal }) {
                 <span>Admin Panel</span>
               </NavLink>
             )}
+            <NavLink to="/employee-profile">
+              <UserIcon />
+              <span>My Profile</span>
+            </NavLink>
           </>
         ) : (
           <>

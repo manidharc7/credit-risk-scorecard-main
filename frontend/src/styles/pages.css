@@ -888,6 +888,53 @@
   font-size: 14px;
 }
 
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.profile-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.profile-edit-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.profile-edit-actions .assess-button,
+.profile-edit-actions .ghost-button {
+  width: auto;
+  margin-top: 0;
+}
+
+@media (max-width: 560px) {
+  .section-heading {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .section-heading .ghost-button {
+    width: 100%;
+  }
+
+  .profile-edit-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-edit-actions {
+    flex-direction: column;
+  }
+
+  .profile-edit-actions .assess-button,
+  .profile-edit-actions .ghost-button {
+    width: 100%;
+  }
+}
+
 /* ============================================================
    HISTORY
 ============================================================ */

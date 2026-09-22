@@ -3,6 +3,7 @@ import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 
 import { Sidebar } from "../components/Sidebar";
 import { AssessmentDetailModal } from "../components/AssessmentDetailModal";
+import { AccountDetailsCard } from "../components/AccountDetailsCard";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/useAuth";
 
@@ -12,7 +13,7 @@ function formatDate(timestamp) {
 }
 
 function CustomerProfile() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,36 +60,7 @@ function CustomerProfile() {
           <p>Your account details and every credit risk report on file.</p>
         </section>
 
-        <section className="card">
-          <div className="section-heading">
-            <div>
-              <span className="section-number">01</span>
-              <div>
-                <h2>Account Details</h2>
-                <p>How your account is registered with CreditGuard AI.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="profile-details-grid">
-            <div>
-              <small>Full Name</small>
-              <strong>{profile?.name}</strong>
-            </div>
-            <div>
-              <small>Email</small>
-              <strong>{profile?.email || "—"}</strong>
-            </div>
-            <div>
-              <small>Phone</small>
-              <strong>{profile?.phone || "—"}</strong>
-            </div>
-            <div>
-              <small>Username</small>
-              <strong>{profile?.username}</strong>
-            </div>
-          </div>
-        </section>
+        <AccountDetailsCard />
 
         <section className="card" style={{ marginTop: 24 }}>
           <div className="history-toolbar">
