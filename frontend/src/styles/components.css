@@ -820,18 +820,16 @@ select {
   .sidebar-footer {
     display: flex;
     align-items: stretch;
-    gap: 2px;
     border-top: none;
     margin: 0;
     padding: 0;
     flex-shrink: 0;
   }
 
+  /* The theme toggle moves to the mobile top bar instead — keeping it
+     in the bottom bar too just crowds an already tight row of icons. */
   .sidebar-theme-toggle {
-    width: 48px;
-    height: auto;
-    min-height: 48px;
-    margin-bottom: 0;
+    display: none;
   }
 
   .sidebar-logout {
@@ -867,6 +865,58 @@ select {
     opacity: 1;
     overflow: visible;
     pointer-events: auto;
+  }
+}
+
+/* ============================================================
+   MOBILE TOP BAR
+============================================================ */
+/* On phones the sidebar becomes a bottom nav bar and drops its brand
+   block entirely (no room for it down there), which left no way back
+   to the landing page and nowhere for the theme toggle to live once
+   it moved out of the crowded bottom row. This fixed top bar covers
+   both, and only ever renders on phones — see the display:none base
+   rule below and its override in the 767px query. */
+.mobile-topbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(52px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) var(--space-4) 0;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-subtle);
+    z-index: 60;
+  }
+
+  .mobile-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+  }
+
+  .mobile-topbar-brand .brand-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .mobile-topbar-brand .logo {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

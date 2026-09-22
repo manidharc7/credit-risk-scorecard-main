@@ -243,10 +243,12 @@
   padding: 0 var(--space-5) var(--space-8);
 }
 
-/* Below 767px the Sidebar switches to a fixed bottom nav bar (see
-   components.css) and is taken out of normal flow, so `.app` /
-   `.customer-page` no longer need to be a flex row — and the content
-   needs bottom padding so it never sits underneath the fixed bar. */
+/* Below 767px the Sidebar switches to a fixed bottom nav bar and a
+   fixed top bar appears for branding + theme toggle (see
+   components.css) — both taken out of normal flow, so `.app` /
+   `.customer-page` no longer need to be a flex row, and the content
+   needs top and bottom padding so it never sits underneath either
+   fixed bar. */
 @media (max-width: 767px) {
   .app,
   .customer-page {
@@ -256,7 +258,8 @@
   .container,
   .customer-container {
     max-width: 100%;
-    padding: 0 var(--space-4) calc(84px + env(safe-area-inset-bottom));
+    padding: calc(52px + env(safe-area-inset-top) + var(--space-4)) var(--space-4)
+      calc(84px + env(safe-area-inset-bottom));
   }
 }
 

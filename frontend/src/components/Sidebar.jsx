@@ -102,6 +102,17 @@ export function Sidebar({ portal }) {
 
   return (
     <>
+      <header className="mobile-topbar">
+        <Link to="/" className="mobile-topbar-brand">
+          <div className="brand-icon">CG</div>
+          <div className="logo">
+            CreditGuard <span>AI</span>
+          </div>
+        </Link>
+
+        <ThemeToggle />
+      </header>
+
       <button
         type="button"
         className={`sidebar-collapse-toggle ${collapsed ? "sidebar-collapsed" : ""}`}
