@@ -22,15 +22,21 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  /* `clip`, not `hidden` — `hidden` makes this element a scroll
+     container, which reassigns the containing block for any
+     `position: sticky` descendant (like the sidebar) from the
+     viewport to this element, breaking the sticky pin. `clip` still
+     prevents horizontal overflow without that side effect. */
+  overflow-x: clip;
   transition: background-color var(--duration-base) var(--ease-out),
     color var(--duration-base) var(--ease-out);
 }
 
 /* Safety net: nothing on the page should ever force horizontal scroll,
-   regardless of viewport width. */
+   regardless of viewport width. (See the `body` comment above for why
+   `clip` and not `hidden`.) */
 #root {
-  overflow-x: hidden;
+  overflow-x: clip;
   width: 100%;
 }
 

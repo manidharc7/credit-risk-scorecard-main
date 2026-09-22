@@ -1,8 +1,19 @@
+import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
 import { logOut } from "../firebase/auth";
 import { ThemeToggle } from "./ThemeToggle";
+
+const COLLAPSE_STORAGE_KEY = "creditguard-sidebar-collapsed";
+
+function getInitialCollapsed() {
+  try {
+    return window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 function GaugeIcon() {
   return (
@@ -48,9 +59,31 @@ function LogoutIcon() {
   );
 }
 
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
 export function Sidebar({ portal }) {
   const navigate = useNavigate();
   const { profile, isAdmin } = useAuth();
+
+  const [collapsed, setCollapsed] = useState(getInitialCollapsed);
+
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(COLLAPSE_STORAGE_KEY, String(next));
+      } catch {
+        // localStorage unavailable — collapse state just won't persist
+      }
+      return next;
+    });
+  };
 
   const handleLogout = async () => {
     await logOut();
@@ -68,65 +101,77 @@ export function Sidebar({ portal }) {
   const initial = (profile?.name || "?").trim().charAt(0).toUpperCase();
 
   return (
-    <aside className="sidebar">
-      <Link to="/" className="sidebar-brand">
-        <div className="brand-icon">CG</div>
-        <div className="logo">
-          CreditGuard <span>AI</span>
-        </div>
-      </Link>
+    <>
+      <button
+        type="button"
+        className={`sidebar-collapse-toggle ${collapsed ? "sidebar-collapsed" : ""}`}
+        onClick={toggleCollapsed}
+        aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+        title={collapsed ? "Show sidebar" : "Hide sidebar"}
+      >
+        <ChevronIcon />
+      </button>
 
-      <div className="sidebar-account">
-        <span className="sidebar-avatar">{initial}</span>
-        <div>
-          <strong>{profile?.name || "Account"}</strong>
-          <small>{roleLabel}</small>
-        </div>
-      </div>
+      <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
+        <Link to="/" className="sidebar-brand">
+          <div className="brand-icon">CG</div>
+          <div className="logo">
+            CreditGuard <span>AI</span>
+          </div>
+        </Link>
 
-      <nav className="sidebar-nav">
-        {portal === "employee" ? (
-          <>
-            <NavLink to="/employee-dashboard" end>
-              <GaugeIcon />
-              <span>Assess</span>
-            </NavLink>
-            <NavLink to="/employee-history">
-              <ClockIcon />
-              <span>History</span>
-            </NavLink>
-            {isAdmin && (
-              <NavLink to="/admin">
-                <ShieldIcon />
-                <span>Admin Panel</span>
+        <div className="sidebar-account">
+          <span className="sidebar-avatar">{initial}</span>
+          <div>
+            <strong>{profile?.name || "Account"}</strong>
+            <small>{roleLabel}</small>
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+          {portal === "employee" ? (
+            <>
+              <NavLink to="/employee-dashboard" end>
+                <GaugeIcon />
+                <span>Assess</span>
               </NavLink>
-            )}
-            <NavLink to="/employee-profile">
-              <UserIcon />
-              <span>My Profile</span>
-            </NavLink>
-          </>
-        ) : (
-          <>
-            <NavLink to="/customer-dashboard" end>
-              <GaugeIcon />
-              <span>Assess</span>
-            </NavLink>
-            <NavLink to="/customer-profile">
-              <UserIcon />
-              <span>My Profile</span>
-            </NavLink>
-          </>
-        )}
-      </nav>
+              <NavLink to="/employee-history">
+                <ClockIcon />
+                <span>History</span>
+              </NavLink>
+              {isAdmin && (
+                <NavLink to="/admin">
+                  <ShieldIcon />
+                  <span>Admin Panel</span>
+                </NavLink>
+              )}
+              <NavLink to="/employee-profile">
+                <UserIcon />
+                <span>My Profile</span>
+              </NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/customer-dashboard" end>
+                <GaugeIcon />
+                <span>Assess</span>
+              </NavLink>
+              <NavLink to="/customer-profile">
+                <UserIcon />
+                <span>My Profile</span>
+              </NavLink>
+            </>
+          )}
+        </nav>
 
-      <div className="sidebar-footer">
-        <ThemeToggle className="sidebar-theme-toggle" />
-        <button type="button" className="sidebar-logout" onClick={handleLogout}>
-          <LogoutIcon />
-          <span>Logout</span>
-        </button>
-      </div>
-    </aside>
+        <div className="sidebar-footer">
+          <ThemeToggle className="sidebar-theme-toggle" />
+          <button type="button" className="sidebar-logout" onClick={handleLogout}>
+            <LogoutIcon />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

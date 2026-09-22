@@ -506,6 +506,60 @@ select {
   height: 100vh;
   overflow-y: auto;
   padding: var(--space-5) var(--space-4);
+  transition: width var(--duration-slow) var(--ease-in-out),
+    padding var(--duration-slow) var(--ease-in-out),
+    opacity var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+.sidebar.sidebar-collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-right-color: transparent;
+}
+
+.sidebar-collapse-toggle {
+  position: fixed;
+  top: 20px;
+  left: calc(var(--sidebar-width) - 15px);
+  z-index: 45;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  transition: left var(--duration-slow) var(--ease-in-out),
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.sidebar-collapse-toggle:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.sidebar-collapse-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.sidebar-collapse-toggle.sidebar-collapsed {
+  left: 15px;
+}
+
+.sidebar-collapse-toggle.sidebar-collapsed svg {
+  transform: rotate(180deg);
 }
 
 .sidebar-brand {
@@ -688,6 +742,14 @@ select {
   .sidebar-logout {
     justify-content: center;
   }
+
+  .sidebar-collapse-toggle {
+    left: 57px;
+  }
+
+  .sidebar-collapse-toggle.sidebar-collapsed {
+    left: 15px;
+  }
 }
 
 /* On phones a side rail — even a slim icon-only one — still eats
@@ -791,6 +853,20 @@ select {
   .sidebar-logout svg {
     width: 19px;
     height: 19px;
+  }
+
+  /* The collapse toggle is a desktop/tablet affordance — on a phone
+     the sidebar is already a bottom nav bar, not a rail to hide, so
+     the toggle is hidden and any collapsed state is neutralized. */
+  .sidebar-collapse-toggle {
+    display: none;
+  }
+
+  .sidebar.sidebar-collapsed {
+    width: 100%;
+    opacity: 1;
+    overflow: visible;
+    pointer-events: auto;
   }
 }
 
